@@ -8,8 +8,11 @@ from ghostcite.models import Citation
 # precedes the next entry or end-of-input. Handles both multi-line and
 # single-line ("@article{k, a={x}, b={y}}") BibTeX shapes.
 _ENTRY = re.compile(r"@\w+\s*\{[^,]*,(?P<body>.*?)\}\s*(?=@|\Z)", re.DOTALL)
-# A field is key = {value} or key = "value"; brace/quote-delimited, no nesting.
-_FIELD = re.compile(r'(\w+)\s*=\s*(?:\{(.*?)\}|"(.*?)")', re.DOTALL)
+# A field is key = {value} or key = "value". The brace branch tolerates one
+# level of nesting (e.g. a brace-protected acronym {ATP} inside a title). The
+# alternation branches [^{}] and \{[^{}]*\} match disjoint first-characters, so
+# this stays linear despite re.DOTALL — no catastrophic backtracking.
+_FIELD = re.compile(r'(\w+)\s*=\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\}|"(.*?)")', re.DOTALL)
 _DOI_CLEAN = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)\s*", re.IGNORECASE)
 
 

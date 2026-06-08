@@ -111,9 +111,20 @@ def evaluate(citation: Citation, canonical: CanonicalRecord | None) -> list[Find
 
 
 def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding]:
+    families_raw = canonical.authors or []
+    if not families_raw:
+        # DOI resolved but CrossRef has no author array (some preprints,
+        # datasets, protocols). Author can't be verified → warn, don't fail CI.
+        return [
+            Finding(
+                citation,
+                Tier.UNRESOLVABLE,
+                canonical,
+                "CrossRef record has no author data — author not verifiable",
+            )
+        ]
     claimed_raw = citation.claimed_first_author.strip()
     claimed = _surname_key(claimed_raw)
-    families_raw = canonical.authors or []
     first_raw = families_raw[0] if families_raw else ""
     first = _surname_key(first_raw)
     all_norm = [_surname_key(a) for a in families_raw]

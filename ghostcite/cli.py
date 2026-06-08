@@ -41,7 +41,8 @@ def _parse_args(argv):
 def main(argv=None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
     try:
-        text = open(args.file, encoding="utf-8").read()
+        with open(args.file, encoding="utf-8") as fh:
+            text = fh.read()
     except OSError as e:
         print(f"ghostcite: cannot read {args.file}: {e}", file=sys.stderr)
         return 2

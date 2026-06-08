@@ -14,6 +14,7 @@ _GLYPH = {
 
 
 def render_text(findings: list[Finding], total: int, with_doi: int) -> str:
+    findings = [f for f in findings if f.tier is not Tier.OK]
     lines = [f"ghostcite: {total} entries, {with_doi} with DOIs"]
     if not findings:
         lines.append("  0 findings — clean")
@@ -33,6 +34,7 @@ def render_text(findings: list[Finding], total: int, with_doi: int) -> str:
 
 
 def render_json(findings: list[Finding], total: int, with_doi: int) -> str:
+    findings = [f for f in findings if f.tier is not Tier.OK]
     payload = {
         "summary": {"total": total, "with_doi": with_doi, "findings": len(findings)},
         "findings": [

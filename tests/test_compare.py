@@ -133,3 +133,21 @@ def test_no_claimed_author_skips_author_check():
     # DOI-list mode: nothing claimed → only retraction/unresolvable can fire
     c = Citation(raw="r", doi="10.1/a")
     assert evaluate(c, _rec()) == []
+
+
+def test_empty_author_record_is_tier_u():
+    # CrossRef returned a work with no author array (real for some preprints/
+    # datasets/protocols): the DOI resolved but the author can't be verified.
+    findings = evaluate(_cit(claimed_first_author="Smith"), _rec(authors=[]))
+    assert [f.tier for f in findings] == [Tier.UNRESOLVABLE]
+    assert "no author data" in findings[0].message
+
+
+def test_retracted_record_with_empty_authors_yields_both():
+    # Retraction fires independently of the missing-author guard.
+    findings = evaluate(
+        _cit(claimed_first_author="Smith"), _rec(authors=[], retracted=True)
+    )
+    tiers = [f.tier for f in findings]
+    assert Tier.RETRACTION in tiers
+    assert Tier.UNRESOLVABLE in tiers

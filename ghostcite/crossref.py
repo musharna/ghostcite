@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import httpx
 
 from ghostcite import __version__
@@ -84,8 +86,18 @@ class CrossRefClient:
     def __exit__(self, *exc) -> None:
         self._client.close()
 
+    def _get(self, url: str, **kw) -> httpx.Response:
+        """GET with a single retry on a transient 429/503, honoring Retry-After
+        (capped at 60s). The caller handles status codes (e.g. 404)."""
+        r = self._client.get(url, **kw)
+        if r.status_code in (429, 503):
+            delay = min(int(r.headers.get("Retry-After", "5")), 60)
+            time.sleep(delay)
+            r = self._client.get(url, **kw)
+        return r
+
     def lookup_by_doi(self, doi: str) -> CanonicalRecord | None:
-        r = self._client.get(f"{_BASE}/works/{doi}")
+        r = self._get(f"{_BASE}/works/{doi}")
         if r.status_code == 404:
             return None
         r.raise_for_status()
@@ -97,7 +109,7 @@ class CrossRefClient:
         query = " ".join(str(x) for x in (author, year, title) if x).strip()
         if not query:
             return None
-        r = self._client.get(
+        r = self._get(
             f"{_BASE}/works", params={"query.bibliographic": query, "rows": 1}
         )
         r.raise_for_status()

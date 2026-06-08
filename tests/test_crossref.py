@@ -31,6 +31,27 @@ def test_lookup_returns_none_on_404(httpx_mock):
         assert c.lookup_by_doi("10.0/missing") is None
 
 
+def test_lookup_retries_once_on_429(httpx_mock):
+    # A transient 429 (with Retry-After: 0 to keep the test fast) must be
+    # retried once and the subsequent 200 parsed normally — not abort the run.
+    url = "https://api.crossref.org/works/10.3390/plants13060869"
+    httpx_mock.add_response(url=url, status_code=429, headers={"Retry-After": "0"})
+    httpx_mock.add_response(url=url, json=WORK)
+    with CrossRefClient() as c:
+        rec = c.lookup_by_doi("10.3390/plants13060869")
+    assert rec.authors[0] == "Chen"
+    assert rec.year == 2024
+
+
+def test_lookup_retries_once_on_503(httpx_mock):
+    url = "https://api.crossref.org/works/10.3390/plants13060869"
+    httpx_mock.add_response(url=url, status_code=503, headers={"Retry-After": "0"})
+    httpx_mock.add_response(url=url, json=WORK)
+    with CrossRefClient() as c:
+        rec = c.lookup_by_doi("10.3390/plants13060869")
+    assert rec.year == 2024
+
+
 def test_retraction_flags_from_relation():
     msg = {"relation": {"is-retracted-by": [{"id": "10.1/notice"}]}}
     assert _retraction_flags(msg) == (True, False)
