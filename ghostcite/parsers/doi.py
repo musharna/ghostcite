@@ -4,7 +4,7 @@ import re
 
 from ghostcite.models import Citation
 
-_DOI = re.compile(r"(10\.\d{4,9}/[^\s)>\"]+)", re.IGNORECASE)
+_DOI = re.compile(r"(10\.\d{1,9}/[^\s)>\"]+)", re.IGNORECASE)
 
 
 def parse_doi_list(text: str) -> list[Citation]:
