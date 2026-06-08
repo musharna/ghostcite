@@ -17,17 +17,6 @@ each DOI. It catches the dominant ghost-citation failure mode — a reference wh
 cited authorship doesn't match the paper the DOI actually points to — and flags
 retracted or expression-of-concern works along the way.
 
-- [The problem](#the-problem)
-- [Install](#install)
-- [Usage](#usage)
-- [How it works](#how-it-works)
-- [Severity tiers](#severity-tiers)
-- [CI / pre-submission gate](#ci--pre-submission-gate)
-- [Related work](#related-work)
-- [FAQ](#faq)
-- [Limitations](#limitations)
-- [Roadmap](#roadmap)
-
 ## The problem
 
 LLM-assisted writing (and plain copy-paste drift) routinely produces references
@@ -35,11 +24,9 @@ that _look_ right but attribute the cited DOI to the wrong authors or year. A
 manuscript cites "Li et al. 2024," but DOI `10.3390/plants13060869` is actually
 **Chen et al.** A reviewer catches it; an automated check catches it first.
 
-`ghostcite` answers exactly one question, deterministically:
-
 > Does the metadata you wrote for this citation match what CrossRef says the DOI actually is?
 
-No model, no API key, no download. Just CrossRef's REST API and a comparison.
+No model, no API key, no download — just CrossRef's REST API and a comparison.
 
 ## Install
 
@@ -49,61 +36,20 @@ pipx install ghostcite         # isolated CLI install (recommended)
 uv tool install ghostcite      # if you use uv
 ```
 
-`pipx` and `uv tool` are the recommended way to install a CLI: they put
-`ghostcite` on your `PATH` in its own isolated environment, so it never collides
-with a project's dependencies.
-
 ## Usage
 
 ```bash
-ghostcite refs.bib              # check a BibTeX file
-ghostcite refs.md               # markdown reference list
-ghostcite dois.txt              # bare DOI list (lookup + retraction sweep)
-ghostcite refs.bib --json       # machine-readable output (for CI)
-ghostcite refs.bib --dry-run    # parse + count only, no network
+ghostcite refs.bib                         # check a BibTeX file (or .md / DOI list)
+ghostcite refs.bib --cross-check pubmed    # corroborate against PubMed
+ghostcite refs.bib --json                  # machine-readable output (for CI)
 ghostcite refs.bib --fail-on author,year,retraction   # tune the CI gate
-cat refs.bib | ghostcite -      # read from stdin
-ghostcite refs.bib --cross-check pubmed   # corroborate against PubMed
+cat refs.bib | ghostcite -                 # read from stdin
 ```
 
-Input format is auto-detected; override with `--format {auto,bibtex,markdown,doi}`.
+Input format is auto-detected (BibTeX, Markdown reference list, or bare DOI list);
+override with `--format {auto,bibtex,markdown,doi}`.
 
-### Flags
-
-- **`--cross-check pubmed`** — adds PubMed/NCBI as a _second source of truth_.
-  Each CrossRef finding is reconciled against PubMed's record for the same DOI:
-  when PubMed backs CrossRef the finding is annotated `↳ corroborated by PubMed`;
-  when PubMed instead agrees with what you _cited_, it's flagged
-  `↳ ⚠ PubMed agrees with the cited author — CrossRef and PubMed conflict; verify
-manually` (the tier is kept so you don't silently trust either source). PubMed
-  can also _raise_ a finding CrossRef missed, or supply a record for a DOI absent
-  from CrossRef. Optional `--ncbi-email` / `--ncbi-api-key` (or `NCBI_EMAIL` /
-  `NCBI_API_KEY`) follow NCBI's E-utilities etiquette and unlock a higher rate
-  limit; neither is required.
-- **`--max-rps <n>`** — cap outbound requests per second. ghostcite already
-  self-throttles to CrossRef's advertised rate limit (read from the response
-  headers); `--max-rps` lets you be _more_ conservative still (the stricter of
-  the two wins).
-- **`--color {auto,always,never}`** — colorize the tier glyphs. `auto` (default)
-  colorizes only on a TTY; `always`/`never` force it. [`NO_COLOR`](https://no-color.org/)
-  is honored and wins even over `always`. `--json` output is never colorized.
-- **stdin (`-`)** — pass `-` as the filename to read the bibliography from stdin,
-  e.g. `cat refs.bib | ghostcite -` or `ghostcite - --format doi < dois.txt`.
-
-See [`examples/`](examples/) for ready-to-run sample inputs and captured output.
-
-### Real example
-
-Given `refs.bib`:
-
-```bibtex
-@article{li2024,
-  author = {Li, X},
-  year   = {2024},
-  title  = {Cell wall activity in Phelipanche},
-  doi    = {10.3390/plants13060869},
-}
-```
+**Real example** — `refs.bib` cites "Li (2024)" for a DOI CrossRef says is Chen:
 
 ```text
 $ ghostcite refs.bib
@@ -114,9 +60,8 @@ $ echo $?
 1
 ```
 
-The DOI is real; the claimed first author "Li" is not — CrossRef says it's Chen.
-
-### Anatomy of a finding
+<details>
+<summary><b>All flags &amp; the anatomy of a finding</b></summary>
 
 ```text
   ✗ A   L1    Li (2024)        →  DOI resolves to Chen (2024)…   [10.3390/plants13060869]
@@ -129,42 +74,27 @@ The DOI is real; the claimed first author "Li" is not — CrossRef says it's Che
   └─ glyph: ✗ fails CI · ⚠ retraction · · informational
 ```
 
-## Input formats
+- **`--cross-check pubmed`** — adds PubMed/NCBI as a _second source of truth_.
+  When PubMed backs CrossRef a finding is annotated `↳ corroborated by PubMed`;
+  when PubMed instead agrees with what you _cited_, it's flagged as a CrossRef↔PubMed
+  conflict (the tier is kept so you don't silently trust either source). PubMed can
+  also _raise_ a finding CrossRef missed, or supply a record for a DOI absent from
+  CrossRef. Optional `--ncbi-email` / `--ncbi-api-key` (or `NCBI_EMAIL` /
+  `NCBI_API_KEY`) follow NCBI E-utilities etiquette and unlock a higher rate limit;
+  neither is required.
+- **`--max-rps <n>`** — cap outbound requests per second. ghostcite already
+  self-throttles to CrossRef's advertised rate limit (read from the response
+  headers); `--max-rps` lets you be _more_ conservative (the stricter of the two wins).
+- **`--color {auto,always,never}`** — colorize the tier glyphs. `auto` (default)
+  colorizes only on a TTY. [`NO_COLOR`](https://no-color.org/) is honored and wins
+  even over `always`. `--json` output is never colorized.
+- **stdin (`-`)** — pass `-` as the filename to read from stdin, e.g.
+  `cat refs.bib | ghostcite -` or `ghostcite - --format doi < dois.txt`.
+- **`--dry-run`** — parse + classify + count only, no network.
 
-| Format       | Detection                                       | Yields claimed author/year?            |
-| ------------ | ----------------------------------------------- | -------------------------------------- |
-| **BibTeX**   | `@article{…}` / `@…{…}` entries                 | Yes (`author`, `year`, `doi`, `title`) |
-| **Markdown** | bullet refs `- **AuthorList (YYYY).** … 10.x …` | Yes                                    |
-| **DOI list** | newline-delimited bare DOIs / `doi:` / DOI URLs | No — lookup + retraction sweep only    |
+See [`examples/`](examples/) for ready-to-run sample inputs and captured output.
 
-A DOI-list run can't detect author/year mismatches (nothing is claimed to compare
-against); it reports each DOI's canonical record and retraction status, and says so.
-
-## Severity tiers
-
-| Tier   | Meaning                                                               | Fails CI?                       |
-| ------ | --------------------------------------------------------------------- | ------------------------------- |
-| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors    | Yes                             |
-| **B**  | year-mismatch — author matches, claimed year differs                  | Yes                             |
-| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger) | No (info)                       |
-| **R**  | retraction / expression-of-concern per CrossRef                       | Yes (fires regardless of A/B/C) |
-| **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive      | No (warn)                       |
-| **OK** | first author + year match                                             | —                               |
-
-When the claimed title also diverges strongly from CrossRef's title, a Tier A
-finding is annotated **"possibly wrong DOI entirely"** to distinguish a wrong-author
-citation from a wrong-DOI one.
-
-## Exit codes
-
-| Code | Meaning                                            |
-| ---- | -------------------------------------------------- |
-| `0`  | clean — no findings at or above the fail threshold |
-| `1`  | findings present at/above the threshold            |
-| `2`  | tool error (network down, unparseable input, …)    |
-
-`--fail-on` (default `author,year,retraction`) selects which tiers force exit `1`;
-pass `--fail-on none` to run as a passive reporter. Tiers `C` and `U` never force exit `1`.
+</details>
 
 ## How it works
 
@@ -187,63 +117,62 @@ flowchart TD
     F -. "--cross-check pubmed" .-> P["PubMed second opinion"]
 ```
 
-For each parsed citation:
+No language model is involved at any step. ghostcite resolves each DOI at CrossRef
+(and optionally PubMed), then does a pure, deterministic comparison of the claimed
+first-author surname (Unicode-folded, punctuation-stripped) and year against the
+canonical record, plus a retraction / expression-of-concern check. Only the HTTP
+client touches the network, via CrossRef's polite pool (a descriptive `User-Agent`
+with the project URL, never a personal email).
 
-1. If it has a DOI → `GET https://api.crossref.org/works/{doi}` for the canonical record.
-2. If it has no DOI but has author/title → best-effort `GET /works?query.bibliographic=…`
-   (results flagged **low-confidence**, never escalated above a warning on their own).
-3. Compare claimed first-author surname (Unicode-folded, punctuation-stripped) and year
-   against the canonical record; assign a severity tier.
-4. Check `updated-by` / `update-to` / `relation` for retraction / expression-of-concern.
+<details>
+<summary><b>Severity tiers, input formats &amp; exit codes</b></summary>
 
-No language model is involved at any step. The comparison is pure and deterministic;
-only the CrossRef client touches the network.
+| Tier   | Meaning                                                               | Fails CI?                       |
+| ------ | --------------------------------------------------------------------- | ------------------------------- |
+| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors    | Yes                             |
+| **B**  | year-mismatch — author matches, claimed year differs                  | Yes                             |
+| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger) | No (info)                       |
+| **R**  | retraction / expression-of-concern per CrossRef                       | Yes (fires regardless of A/B/C) |
+| **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive      | No (warn)                       |
+| **OK** | first author + year match                                             | —                               |
 
-CrossRef requests carry a descriptive `User-Agent` with the project URL (the CrossRef
-"polite pool"), never a personal email.
+When the claimed title also diverges strongly from CrossRef's title, a Tier A
+finding is annotated **"possibly wrong DOI entirely"** to distinguish a wrong-author
+citation from a wrong-DOI one.
 
-## CI / pre-submission gate
+| Format       | Detection                                       | Yields claimed author/year?            |
+| ------------ | ----------------------------------------------- | -------------------------------------- |
+| **BibTeX**   | `@article{…}` / `@…{…}` entries                 | Yes (`author`, `year`, `doi`, `title`) |
+| **Markdown** | bullet refs `- **AuthorList (YYYY).** … 10.x …` | Yes                                    |
+| **DOI list** | newline-delimited bare DOIs / `doi:` / DOI URLs | No — lookup + retraction sweep only    |
 
-A clean run is quiet and exits 0:
+| Exit code | Meaning                                            |
+| --------- | -------------------------------------------------- |
+| `0`       | clean — no findings at or above the fail threshold |
+| `1`       | findings present at/above the threshold            |
+| `2`       | tool error (network down, unparseable input, …)    |
+
+`--fail-on` (default `author,year,retraction`) selects which tiers force exit `1`;
+`--fail-on none` runs as a passive reporter. Tiers `C` and `U` never force exit `1`.
+
+</details>
+
+## Use it in CI
+
+A clean run is quiet and exits `0`:
 
 <p align="center"><img src="examples/assets/demo-clean.png" alt="ghostcite clean run" width="520"></p>
 
-```yaml
-# .github/workflows/citations.yml
-- name: Check citations
-  run: |
-    pip install ghostcite
-    ghostcite paper/references.bib --fail-on author,year,retraction
-```
-
-A non-zero exit fails the job, so a ghost citation blocks the merge before submission.
-
-### GitHub Action
-
-A composite Action ships in this repo, so you can drop ghostcite into a workflow
-without a manual `pip install` step:
+Drop in the composite **GitHub Action**:
 
 ```yaml
-# .github/workflows/citations.yml
-jobs:
-  citations:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: musharna/ghostcite@v1
-        with:
-          paths: paper/refs.bib
-          fail-on: "author,year,retraction"
+- uses: musharna/ghostcite@v1
+  with:
+    paths: paper/refs.bib
+    fail-on: "author,year,retraction"
 ```
 
-The Action installs ghostcite from PyPI and runs it with `--color always` so the
-findings are readable in the Actions log.
-
-### pre-commit hook
-
-ghostcite ships a [pre-commit](https://pre-commit.com/) hook, so a ghost citation
-is caught locally before it ever lands in a commit. Add it to your
-`.pre-commit-config.yaml`:
+…or the **[pre-commit](https://pre-commit.com/) hook**:
 
 ```yaml
 repos:
@@ -254,31 +183,26 @@ repos:
         args: [paper/references.bib, --fail-on, "author,year,retraction"]
 ```
 
-The hook runs ghostcite over the bibliography file you name in `args` on each
-commit and blocks the commit when a finding fires at or above the `--fail-on`
-threshold. (ghostcite's CLI takes a single bibliography file, so pass the path
-explicitly in `args` rather than relying on pre-commit's file list.)
+Either way, a finding at or above the `--fail-on` threshold returns a non-zero
+exit, blocking the merge or commit before submission.
 
-## Scope (v1)
+## Scope &amp; limitations
 
 `ghostcite` checks **metadata correctness** (does the DOI's record match what you
-wrote), not claim support (does the source actually say what your prose claims) — that
-is a separate, LLM-based concern. It does no auto-fixing and no citation-style linting.
-CrossRef is the primary source of truth; `--cross-check pubmed` adds PubMed as an
-optional second source for corroboration and conflict detection.
-
-## Limitations
+wrote), not claim support (does the source actually _say_ what your prose claims —
+a separate, LLM-based concern). It does no auto-fixing and no citation-style
+linting. CrossRef is the source of truth; `--cross-check pubmed` adds PubMed as an
+optional second opinion.
 
 - CrossRef stores particle surnames inconsistently (`van der Berg` vs `Berg`), so a
   correctly-cited prefixed surname can rarely produce a Tier A false positive.
 - No-DOI entries are resolved by best-effort bibliographic search and flagged
-  low-confidence; treat those findings as hints, not verdicts.
+  low-confidence — treat those as hints, not verdicts.
 - Some preprints, datasets, and protocols carry no author metadata in CrossRef and
-  surface as Tier U ("author not verifiable") rather than a mismatch.
-- A DOI absent from CrossRef can't be checked there; `--cross-check pubmed` can
-  recover some of these when the DOI is indexed in PubMed.
+  surface as Tier U rather than a mismatch.
 
-## Related work
+<details>
+<summary><b>Related work &amp; FAQ</b></summary>
 
 ghostcite's niche is **deterministic, no-LLM, CLI-first** checking focused on the
 **byline-mismatch** failure mode (right DOI, wrong author/year) plus **retraction**
@@ -293,43 +217,18 @@ flagging — built to run unattended in CI.
 | [scite Reference Check](https://scite.ai/)                      | Commercial, PDF-oriented, retraction focus  | ghostcite is free / open-source, BibTeX-native, and catches byline mismatch |
 | [doimgr](https://github.com/dotcs/doimgr)                       | Formats and manages DOIs (doesn't validate) | ghostcite verifies byline and retraction status, not just formatting        |
 
-In short: if you want a deterministic, dependency-light gate that catches the
-wrong-author and retracted-source cases in CI, ghostcite fills that gap; for
-claim-level fact-checking or interactive PDF review, the LLM/commercial tools above
-do more.
+**Does it call an LLM?** No — a deterministic comparison of the metadata you wrote
+against CrossRef's (and optionally PubMed's) canonical record. No model, no prompt,
+no API key required.
 
-## FAQ
+**Will it hit rate limits?** It self-throttles to CrossRef's advertised rate limit
+(read from the live response headers); use `--max-rps` to be more conservative.
 
-**Does it call an LLM?**
-No. ghostcite is a deterministic comparison of the metadata you wrote against
-CrossRef's (and optionally PubMed's) canonical record for each DOI. There is no
-model, no prompt, and no API key required.
+**Does it catch fabricated DOIs?** Indirectly — a DOI that 404s at CrossRef
+surfaces as Tier U. The core check is byline-vs-DOI _consistency_, so it catches the
+common case of a real DOI attached to the wrong citation.
 
-**Will it hit rate limits?**
-It self-throttles to CrossRef's advertised rate limit, read from the live response
-headers; use `--max-rps` to be more conservative. Requests carry a descriptive
-`User-Agent` with the project URL to stay in CrossRef's polite pool.
-
-**Does it catch fabricated DOIs?**
-Indirectly. A DOI that 404s at CrossRef surfaces as Tier U (unresolvable). ghostcite's
-core check is byline-vs-DOI _consistency_ — whether the DOI's record matches the
-author/year you cited — rather than pure existence, so it catches the common case of a
-real DOI attached to the wrong citation.
-
-**Can I use it in CI?**
-Yes. It exits non-zero when findings at or above the `--fail-on` threshold are present,
-so a ghost citation fails the job. Use the CLI directly or the
-[`musharna/ghostcite`](#github-action) GitHub Action.
-
-## Roadmap
-
-The original v1 roadmap — PubMed cross-check, `--max-rps` pacing, and stdin input —
-is now **shipped**. Remaining ideas:
-
-- Additional metadata sources (e.g. DataCite for datasets).
-- Bundling an offline Retraction Watch dataset for retraction checks without a network
-  round-trip.
-- More input formats beyond BibTeX / Markdown / DOI lists.
+</details>
 
 ## License
 

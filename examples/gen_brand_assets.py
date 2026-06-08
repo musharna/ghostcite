@@ -63,33 +63,46 @@ def _draw_ghost(d: ImageDraw.ImageDraw, cx: int, top: int, w: int, h: int, fill)
     for i in range(n):
         x0 = left + i * seg
         d.pieslice([x0, by - bump_r, x0 + seg, by + bump_r], 0, 180, fill=fill)
-    # Eyes.
-    eye_r = max(4, w // 14)
-    ey = top + int(dome_h * 0.95)
-    for ex in (cx - int(w * 0.20), cx + int(w * 0.20)):
-        d.ellipse([ex - eye_r, ey - eye_r, ex + eye_r, ey + eye_r], fill=(30, 33, 39))
+    # Eyes, each with a small catchlight for a bit of life.
+    eye_r = max(4, w // 13)
+    ey = top + int(dome_h * 0.92)
+    cl = max(2, eye_r // 3)
+    for ex in (cx - int(w * 0.21), cx + int(w * 0.21)):
+        d.ellipse([ex - eye_r, ey - eye_r, ex + eye_r, ey + eye_r], fill=(28, 31, 40))
+        clx, cly = ex - eye_r * 0.42, ey - eye_r * 0.42
+        d.ellipse([clx - cl, cly - cl, clx + cl, cly + cl], fill=(214, 220, 232))
 
 
 def make_logo() -> str:
     # Self-contained dark banner so it reads on BOTH GitHub light and dark
     # themes (a near-white ghost on a transparent bg would vanish on light).
+    # Rendered at 4x and downsampled (LANCZOS) for crisp, anti-aliased edges.
+    S = 4
     W, H = 760, 220
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, W - 1, H - 1], radius=24, fill=BG)
-    d.rounded_rectangle([0, 0, W - 1, H - 1], radius=24, outline=(40, 44, 52), width=2)
-    gx = 100
-    _draw_ghost(d, gx, 46, 96, 120, GHOST)
-    word = _font("JetBrainsMonoNLNerdFont-Bold.ttf", 76)
-    tag = _font("JetBrainsMonoNLNerdFont-Regular.ttf", 26)
-    tx = 176
-    d.text((tx, 62), "ghost", font=word, fill=GHOST)
+    big = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big)
+    d.rounded_rectangle([0, 0, W * S - 1, H * S - 1], radius=26 * S, fill=BG)
+    # Thin magenta top accent (echoes the social card), inset from the corners.
+    d.rectangle([60 * S, 0, (W - 60) * S, 5 * S], fill=MAGENTA)
+    d.rounded_rectangle(
+        [0, 0, W * S - 1, H * S - 1], radius=26 * S, outline=(48, 53, 64), width=2 * S
+    )
+    _draw_ghost(d, 102 * S, 44 * S, 100 * S, 126 * S, GHOST)
+    word = _font("JetBrainsMonoNLNerdFont-Bold.ttf", 78 * S)
+    tag = _font("JetBrainsMonoNLNerdFont-Regular.ttf", 26 * S)
+    tx = 182 * S
+    d.text((tx, 58 * S), "ghost", font=word, fill=GHOST)
     gw = d.textlength("ghost", font=word)
-    d.text((tx + gw, 62), "cite", font=word, fill=CYAN)
-    d.text((tx + 4, 156), "right DOI · wrong author", font=tag, fill=DIM)
+    d.text((tx + gw, 58 * S), "cite", font=word, fill=CYAN)
+    # Terminal-style cursor block after the wordmark (ties to the CLI identity).
+    cw = d.textlength("cite", font=word)
+    cur_x = tx + gw + cw + 10 * S
+    d.rectangle([cur_x, 66 * S, cur_x + 20 * S, 138 * S], fill=(86, 182, 194, 235))
+    d.text((tx + 4 * S, 156 * S), "right DOI · wrong author", font=tag, fill=DIM)
+    img = big.resize((W, H), Image.LANCZOS)
     out = os.path.join(ASSETS, "logo.png")
     img.save(out)
-    return f"{out} ({W}x{H})"
+    return f"{out} ({W}x{H}, 4x supersampled)"
 
 
 def make_social() -> str:
