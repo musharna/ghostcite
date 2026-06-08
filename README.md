@@ -1,5 +1,9 @@
 # ghostcite
 
+[![CI](https://github.com/musharna/ghostcite/actions/workflows/ci.yml/badge.svg)](https://github.com/musharna/ghostcite/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+
 **Catch ghost citations — right DOI, wrong author.**
 
 `ghostcite` is a deterministic, **no-LLM** command-line tool that cross-checks a
@@ -136,6 +140,22 @@ A non-zero exit fails the job, so a ghost citation blocks the merge before submi
 wrote), not claim support (does the source actually say what your prose claims) — that
 is a separate, LLM-based concern. It does no auto-fixing, no citation-style linting,
 and uses CrossRef as the single source of truth (PubMed cross-checking is a future flag).
+
+## Limitations
+
+- CrossRef stores particle surnames inconsistently (`van der Berg` vs `Berg`), so a
+  correctly-cited prefixed surname can rarely produce a Tier A false positive.
+- No-DOI entries are resolved by best-effort bibliographic search and flagged
+  low-confidence; treat those findings as hints, not verdicts.
+- Some preprints, datasets, and protocols carry no author metadata in CrossRef and
+  surface as Tier U ("author not verifiable") rather than a mismatch.
+- CrossRef is the sole source of truth in v1; a DOI absent from CrossRef can't be checked.
+
+## Roadmap
+
+- PubMed cross-check (`--cross-check pubmed`) as a second source of truth.
+- Proactive CrossRef rate-limit header pacing / `--max-rps`.
+- Read from stdin (`ghostcite -`) for pipelines.
 
 ## License
 

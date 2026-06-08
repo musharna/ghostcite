@@ -8,22 +8,31 @@ license = { text = "MIT" }
 authors = [{ name = "Jaret Arnold" }]
 keywords = ["citations", "crossref", "bibtex", "research-integrity", "doi", "cli"]
 classifiers = [
+    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Markup",
     "Environment :: Console",
 ]
 dependencies = ["httpx>=0.24"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-httpx>=0.30"]
+dev = ["pytest>=7", "pytest-httpx>=0.30", "ruff"]
 
 [project.scripts]
 ghostcite = "ghostcite.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/musharna/ghostcite"
+Repository = "https://github.com/musharna/ghostcite"
+Issues = "https://github.com/musharna/ghostcite/issues"
 
 [build-system]
 requires = ["hatchling"]

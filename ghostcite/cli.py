@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from ghostcite import __version__
 from ghostcite.compare import evaluate
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
@@ -21,6 +22,7 @@ def _parse_args(argv):
         prog="ghostcite",
         description="Catch ghost citations: cross-check claimed author/year against CrossRef.",
     )
+    p.add_argument("--version", action="version", version=f"ghostcite {__version__}")
     p.add_argument("file", help="bibliography file (.bib, markdown refs, or DOI list)")
     p.add_argument(
         "--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto"

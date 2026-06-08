@@ -90,3 +90,10 @@ def test_fail_on_none_forces_exit_0(tmp_path):
         "doi={10.3390/plants13060869}}",
     )
     assert cli.main([f, "--fail-on", "none"]) == 0
+
+
+def test_version_flag_prints_and_exits_0(capsys):
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["--version"])
+    assert exc.value.code == 0
+    assert capsys.readouterr().out.strip() == "ghostcite 0.1.0"
