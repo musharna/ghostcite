@@ -1,5 +1,7 @@
 # ghostcite
 
+<p align="center"><img src="examples/assets/logo.png" alt="ghostcite" width="380"></p>
+
 [![PyPI](https://img.shields.io/pypi/v/ghostcite.svg)](https://pypi.org/project/ghostcite/)
 [![CI](https://github.com/musharna/ghostcite/actions/workflows/ci.yml/badge.svg)](https://github.com/musharna/ghostcite/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -14,6 +16,17 @@ bibliography's _claimed_ author and year against CrossRef's canonical record for
 each DOI. It catches the dominant ghost-citation failure mode — a reference whose
 cited authorship doesn't match the paper the DOI actually points to — and flags
 retracted or expression-of-concern works along the way.
+
+- [The problem](#the-problem)
+- [Install](#install)
+- [Usage](#usage)
+- [How it works](#how-it-works)
+- [Severity tiers](#severity-tiers)
+- [CI / pre-submission gate](#ci--pre-submission-gate)
+- [Related work](#related-work)
+- [FAQ](#faq)
+- [Limitations](#limitations)
+- [Roadmap](#roadmap)
 
 ## The problem
 
@@ -31,8 +44,14 @@ No model, no API key, no download. Just CrossRef's REST API and a comparison.
 ## Install
 
 ```bash
-pip install ghostcite
+pip install ghostcite          # into the current environment
+pipx install ghostcite         # isolated CLI install (recommended)
+uv tool install ghostcite      # if you use uv
 ```
+
+`pipx` and `uv tool` are the recommended way to install a CLI: they put
+`ghostcite` on your `PATH` in its own isolated environment, so it never collides
+with a project's dependencies.
 
 ## Usage
 
@@ -97,6 +116,19 @@ $ echo $?
 
 The DOI is real; the claimed first author "Li" is not — CrossRef says it's Chen.
 
+### Anatomy of a finding
+
+```text
+  ✗ A   L1    Li (2024)        →  DOI resolves to Chen (2024)…   [10.3390/plants13060869]
+  │ │   │     │                    │                               │
+  │ │   │     │                    │                               └─ DOI that was checked
+  │ │   │     │                    └─ what CrossRef actually records
+  │ │   │     └─ what you cited (claimed first author + year)
+  │ │   └─ source line in your bibliography
+  │ └─ tier: A author · B year · C cosmetic · R retraction · U unresolvable
+  └─ glyph: ✗ fails CI · ⚠ retraction · · informational
+```
+
 ## Input formats
 
 | Format       | Detection                                       | Yields claimed author/year?            |
@@ -136,6 +168,25 @@ pass `--fail-on none` to run as a passive reporter. Tiers `C` and `U` never forc
 
 ## How it works
 
+```mermaid
+flowchart TD
+    A["Citation: claimed author + year (+ DOI)"] --> B{"Has DOI?"}
+    B -- yes --> C["GET CrossRef /works/{DOI}"]
+    B -- no --> D["CrossRef bibliographic search<br/>(low-confidence)"]
+    C --> E{"DOI resolves?"}
+    E -- no --> U["Tier U — unresolvable"]
+    E -- yes --> F["Compare claimed vs. canonical record"]
+    D --> F
+    F --> G{"First-author surname matches?"}
+    G -- no --> TA["Tier A — author mismatch"]
+    G -- yes --> H{"Year matches?"}
+    H -- no --> TB["Tier B — year mismatch"]
+    H -- yes --> OK["OK"]
+    C --> R{"Retracted / expression of concern?"}
+    R -- yes --> TR["Tier R — retraction (orthogonal)"]
+    F -. "--cross-check pubmed" .-> P["PubMed second opinion"]
+```
+
 For each parsed citation:
 
 1. If it has a DOI → `GET https://api.crossref.org/works/{doi}` for the canonical record.
@@ -152,6 +203,10 @@ CrossRef requests carry a descriptive `User-Agent` with the project URL (the Cro
 "polite pool"), never a personal email.
 
 ## CI / pre-submission gate
+
+A clean run is quiet and exits 0:
+
+<p align="center"><img src="examples/assets/demo-clean.png" alt="ghostcite clean run" width="520"></p>
 
 ```yaml
 # .github/workflows/citations.yml
@@ -183,6 +238,26 @@ jobs:
 
 The Action installs ghostcite from PyPI and runs it with `--color always` so the
 findings are readable in the Actions log.
+
+### pre-commit hook
+
+ghostcite ships a [pre-commit](https://pre-commit.com/) hook, so a ghost citation
+is caught locally before it ever lands in a commit. Add it to your
+`.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/musharna/ghostcite
+    rev: v0.1.0
+    hooks:
+      - id: ghostcite
+        args: [paper/references.bib, --fail-on, "author,year,retraction"]
+```
+
+The hook runs ghostcite over the bibliography file you name in `args` on each
+commit and blocks the commit when a finding fires at or above the `--fail-on`
+threshold. (ghostcite's CLI takes a single bibliography file, so pass the path
+explicitly in `args` rather than relying on pre-commit's file list.)
 
 ## Scope (v1)
 
