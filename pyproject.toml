@@ -1,0 +1,37 @@
+[project]
+name = "ghostcite"
+version = "0.1.0"
+description = "Catch ghost citations — cross-check a bibliography's claimed author/year against CrossRef"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jaret Arnold" }]
+keywords = ["citations", "crossref", "bibtex", "research-integrity", "doi", "cli"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Environment :: Console",
+]
+dependencies = ["httpx>=0.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-httpx>=0.30"]
+
+[project.scripts]
+ghostcite = "ghostcite.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/musharna/ghostcite"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ghostcite"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: hits the real CrossRef API (deselect with -m 'not live')"]
