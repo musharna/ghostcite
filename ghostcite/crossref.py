@@ -79,3 +79,18 @@ class CrossRefClient:
             return None
         r.raise_for_status()
         return _record_from_message(r.json()["message"])
+
+    def search_bibliographic(
+        self, author: str | None, year: int | None, title: str | None
+    ) -> CanonicalRecord | None:
+        query = " ".join(str(x) for x in (author, year, title) if x).strip()
+        if not query:
+            return None
+        r = self._client.get(
+            f"{_BASE}/works", params={"query.bibliographic": query, "rows": 1}
+        )
+        r.raise_for_status()
+        items = r.json().get("message", {}).get("items") or []
+        if not items:
+            return None
+        return _record_from_message(items[0], low_confidence=True)

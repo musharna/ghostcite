@@ -1,3 +1,4 @@
+import httpx
 
 from ghostcite.crossref import CrossRefClient, _retraction_flags
 
@@ -38,3 +39,49 @@ def test_retraction_flags_from_relation():
 def test_eoc_flag_from_update_to():
     msg = {"update-to": [{"type": "expression_of_concern", "DOI": "10.1/x"}]}
     assert _retraction_flags(msg) == (False, True)
+
+
+SEARCH = {
+    "message": {
+        "items": [
+            {
+                "DOI": "10.1038/s41586-021-00001",
+                "author": [{"family": "Ngou"}],
+                "title": ["Mutual potentiation of plant immunity"],
+                "container-title": ["Nature"],
+                "published": {"date-parts": [[2021]]},
+            }
+        ]
+    }
+}
+
+
+def test_search_bibliographic_marks_low_confidence(httpx_mock):
+    httpx_mock.add_response(
+        url=httpx.URL(
+            "https://api.crossref.org/works",
+            params={
+                "query.bibliographic": "Ngou 2021 Mutual potentiation of plant immunity",
+                "rows": 1,
+            },
+        ),
+        json=SEARCH,
+    )
+    with CrossRefClient() as c:
+        rec = c.search_bibliographic(
+            "Ngou", 2021, "Mutual potentiation of plant immunity"
+        )
+    assert rec.doi == "10.1038/s41586-021-00001"
+    assert rec.low_confidence is True
+
+
+def test_search_returns_none_on_empty(httpx_mock):
+    httpx_mock.add_response(
+        url=httpx.URL(
+            "https://api.crossref.org/works",
+            params={"query.bibliographic": "Nobody 1999 no such paper", "rows": 1},
+        ),
+        json={"message": {"items": []}},
+    )
+    with CrossRefClient() as c:
+        assert c.search_bibliographic("Nobody", 1999, "no such paper") is None
