@@ -10,7 +10,17 @@ _UA = f"ghostcite/{__version__} (https://github.com/musharna/ghostcite)"
 
 
 def _retraction_flags(message: dict) -> tuple[bool, bool]:
-    """Return (retracted, expression_of_concern) from a CrossRef work message."""
+    """Return (retracted, expression_of_concern) from a CrossRef work message.
+
+    CrossRef exposes retraction/EoC three ways, and the live schema (verified
+    against the Wakefield 1998 Lancet DOI, 2026-06-08) uses ``updated-by``:
+      - ``updated-by``: items ON THE RETRACTED WORK pointing forward to the
+        notice; each has ``type`` ∈ {retraction, expression_of_concern, ...}.
+        This is the canonical "this paper was retracted" signal.
+      - ``update-to``: the inverse — items on the NOTICE pointing back to what
+        it updates (kept for completeness; often null on the retracted work).
+      - ``relation``: keys like ``is-retracted-by`` (rarely populated).
+    """
     retracted = eoc = False
     relation = message.get("relation") or {}
     for key in relation:
@@ -19,12 +29,13 @@ def _retraction_flags(message: dict) -> tuple[bool, bool]:
             retracted = True
         if "concern" in k:
             eoc = True
-    for upd in message.get("update-to") or []:
-        t = str(upd.get("type", "")).lower()
-        if "retract" in t:
-            retracted = True
-        if "concern" in t:
-            eoc = True
+    for field in ("updated-by", "update-to"):
+        for upd in message.get(field) or []:
+            t = str(upd.get("type", "")).lower()
+            if "retract" in t:
+                retracted = True
+            if "concern" in t:
+                eoc = True
     return retracted, eoc
 
 

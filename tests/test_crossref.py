@@ -41,6 +41,23 @@ def test_eoc_flag_from_update_to():
     assert _retraction_flags(msg) == (False, True)
 
 
+def test_retraction_flag_from_updated_by():
+    # Real CrossRef schema (verified against Wakefield 1998 Lancet DOI): the
+    # retracted work carries an ``updated-by`` item of type "retraction".
+    msg = {
+        "updated-by": [
+            {"type": "correction", "DOI": "10.1/c"},
+            {"type": "retraction", "DOI": "10.1/r"},
+        ]
+    }
+    assert _retraction_flags(msg) == (True, False)
+
+
+def test_eoc_flag_from_updated_by():
+    msg = {"updated-by": [{"type": "expression_of_concern", "DOI": "10.1/e"}]}
+    assert _retraction_flags(msg) == (False, True)
+
+
 SEARCH = {
     "message": {
         "items": [
