@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use ghostcite in your work, please cite it as below."
+title: ghostcite
+abstract: >-
+  A deterministic, no-LLM command-line tool that catches ghost citations —
+  references whose claimed author or year does not match the canonical record
+  for the DOI at CrossRef (and optionally PubMed) — and flags retracted or
+  expression-of-concern works.
+type: software
+authors:
+  - family-names: Arnold
+    given-names: Jaret
+    orcid: "https://orcid.org/0009-0003-4055-5238"
+repository-code: "https://github.com/musharna/ghostcite"
+url: "https://github.com/musharna/ghostcite"
+license: MIT
+version: 0.1.0
+date-released: "2026-06-08"
+keywords:
+  - citations
+  - crossref
+  - pubmed
+  - bibtex
+  - research-integrity
+  - doi
