@@ -215,7 +215,7 @@ def cross_check_pubmed(
         return
 
     claimed_author = _surname_key(citation.claimed_first_author)
-    pm_author = normalize_surname(pubmed.first_author_surname)
+    pm_author = _surname_key(pubmed.first_author_surname)
     claimed_year = citation.claimed_year
 
     # 1. Retraction / expression of concern — OR-combine with CrossRef.
@@ -241,6 +241,7 @@ def cross_check_pubmed(
     author_year_findings = [f for f in findings if f.tier in (Tier.AUTHOR, Tier.YEAR)]
 
     # 3. Existing AUTHOR/YEAR findings — does PubMed back CrossRef or the claim?
+    no_data_note = "PubMed record had no author/year data — not verifiable"
     for f in author_year_findings:
         if f.tier is Tier.AUTHOR and pm_author and claimed_author:
             if pm_author == claimed_author:
@@ -258,6 +259,10 @@ def cross_check_pubmed(
                 )
             else:
                 f.cross_check = "corroborated by PubMed"
+        else:
+            # PubMed was consulted but lacks the usable author/year needed to
+            # corroborate this finding — say so instead of leaving it silent.
+            f.cross_check = no_data_note
 
     # 4. CrossRef raised no author finding but PubMed disagrees with the claim.
     has_author_finding = any(f.tier is Tier.AUTHOR for f in findings)

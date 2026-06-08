@@ -16,8 +16,10 @@ class _Pacer:
     """
 
     def __init__(self, max_rps: float | None) -> None:
+        if max_rps is not None and max_rps <= 0:
+            raise ValueError("max_rps must be positive")
         self._min_interval = 1.0 / max_rps if max_rps else 0.0
-        self._last = 0.0
+        self._last: float | None = None
 
     def update_from_headers(self, headers: Mapping[str, str]) -> None:
         """Raise the floor from CrossRef rate headers. Malformed/missing → no-op."""
@@ -40,7 +42,7 @@ class _Pacer:
     def wait(self) -> None:
         """Block until at least ``_min_interval`` has elapsed since the last call."""
         now = time.monotonic()
-        if self._last == 0.0:
+        if self._last is None:
             # First call: prime the clock, don't sleep.
             self._last = now
             return

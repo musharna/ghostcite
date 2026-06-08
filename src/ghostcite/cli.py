@@ -109,7 +109,7 @@ def main(argv=None) -> int:
         print(f"ghostcite: {e}", file=sys.stderr)
         return 2
 
-    color = _want_color(args.color)
+    color = False if args.json else _want_color(args.color)
     with_doi = sum(1 for c in citations if c.doi)
     if args.dry_run:
         print(

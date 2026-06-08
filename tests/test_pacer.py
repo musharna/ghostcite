@@ -94,3 +94,15 @@ def test_none_max_rps_no_floor(fake_clock):
     p.wait()
     p.wait()
     assert fake_clock.slept == []
+
+
+@pytest.mark.parametrize("bad", [0, -1])
+def test_nonpositive_max_rps_raises(bad):
+    with pytest.raises(ValueError, match="max_rps must be positive"):
+        _Pacer(bad)
+
+
+def test_none_and_positive_max_rps_construct():
+    # Sanity: the guard rejects only non-positive values.
+    assert _Pacer(None)._min_interval == 0.0
+    assert _Pacer(2.0)._min_interval == pytest.approx(0.5)

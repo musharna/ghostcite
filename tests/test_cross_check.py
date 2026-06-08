@@ -92,6 +92,32 @@ def test_retraction_only_from_pubmed_raises_retraction():
     assert any(f.tier is Tier.RETRACTION for f in findings)
 
 
+def test_year_finding_pubmed_no_year_notes_not_verifiable():
+    # CrossRef raises a YEAR finding; PubMed record carries no year → annotate
+    # that PubMed was consulted but couldn't verify, rather than leaving it None.
+    c = _cit(author="Chen", year=2024)
+    rec = CanonicalRecord(doi="10.1/x", authors=["Chen"], year=2019, title="A study of cells")
+    findings = evaluate(c, rec)
+    f = next(f for f in findings if f.tier is Tier.YEAR)
+    assert f.cross_check is None
+    pm = PubMedRecord(pmid="1", first_author_surname="chen", year=None)
+    cross_check_pubmed(c, rec, findings, pm)
+    assert f.cross_check == "PubMed record had no author/year data — not verifiable"
+
+
+def test_author_finding_pubmed_empty_surname_notes_not_verifiable():
+    # CrossRef raises an AUTHOR finding; PubMed surname normalizes to empty →
+    # same not-verifiable note.
+    c = _cit(author="Li")
+    rec = CanonicalRecord(doi="10.1/x", authors=["Chen"], year=2024, title="A study of cells")
+    findings = evaluate(c, rec)
+    f = next(f for f in findings if f.tier is Tier.AUTHOR)
+    assert f.cross_check is None
+    pm = PubMedRecord(pmid="1", first_author_surname="", year=2024)
+    cross_check_pubmed(c, rec, findings, pm)
+    assert f.cross_check == "PubMed record had no author/year data — not verifiable"
+
+
 def test_none_pubmed_is_noop():
     c = _cit(author="Chen")
     rec = CanonicalRecord(doi="10.1/x", authors=["Chen"], year=2024, title="A study of cells")

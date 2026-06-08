@@ -5,6 +5,7 @@ import re
 import httpx
 
 from ghostcite import __version__
+from ghostcite._pace import _Pacer
 from ghostcite.compare import _is_initials, normalize_surname
 from ghostcite.models import PubMedRecord
 
@@ -56,8 +57,6 @@ class PubMedClient:
         timeout: float = 20.0,
         max_rps: float | None = None,
     ) -> None:
-        from ghostcite._pace import _Pacer
-
         self._tool = tool
         self._email = email
         self._api_key = api_key
