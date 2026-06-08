@@ -33,6 +33,7 @@ ghostcite = "ghostcite.cli:main"
 Homepage = "https://github.com/musharna/ghostcite"
 Repository = "https://github.com/musharna/ghostcite"
 Issues = "https://github.com/musharna/ghostcite/issues"
+Changelog = "https://github.com/musharna/ghostcite/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

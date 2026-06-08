@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a bug in ghostcite
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please do **not** report security vulnerabilities here —
+        see [SECURITY.md](../SECURITY.md) for private disclosure.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: I ran `ghostcite refs.bib` and expected ... but got ...
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component?
+      multiple: true
+      options:
+        - CLI (ghostcite command)
+        - CrossRef lookup
+        - PubMed cross-check
+        - BibTeX / RIS parser
+        - output / formatting
+        - not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: ghostcite version
+      description: Output of `ghostcite --version`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS / platform
+      description: e.g. Ubuntu 24.04, macOS 14, WSL2, Windows 11.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact command and a minimal `.bib` snippet (redact any private DOIs if needed).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Actual output / error
+      description: Full terminal output, including any tracebacks.
+      render: shell
+    validations:
+      required: false
