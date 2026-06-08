@@ -23,7 +23,10 @@ def _parse_args(argv):
         description="Catch ghost citations: cross-check claimed author/year against CrossRef.",
     )
     p.add_argument("--version", action="version", version=f"ghostcite {__version__}")
-    p.add_argument("file", help="bibliography file (.bib, markdown refs, or DOI list)")
+    p.add_argument(
+        "file",
+        help="bibliography file (.bib, markdown refs, or DOI list), or '-' for stdin",
+    )
     p.add_argument("--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.add_argument("--dry-run", action="store_true", help="parse + count only, no network")
@@ -47,12 +50,18 @@ def _parse_args(argv):
 
 def main(argv=None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
-    try:
-        with open(args.file, encoding="utf-8") as fh:
-            text = fh.read()
-    except OSError as e:
-        print(f"ghostcite: cannot read {args.file}: {e}", file=sys.stderr)
-        return 2
+    if args.file == "-":
+        text = sys.stdin.read()
+        if not text.strip():
+            print("ghostcite: no input on stdin", file=sys.stderr)
+            return 2
+    else:
+        try:
+            with open(args.file, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as e:
+            print(f"ghostcite: cannot read {args.file}: {e}", file=sys.stderr)
+            return 2
 
     try:
         citations = parse(text, fmt=args.format)

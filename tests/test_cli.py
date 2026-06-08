@@ -1,3 +1,4 @@
+import io
 import subprocess
 import sys
 
@@ -110,6 +111,30 @@ def test_max_rps_nonpositive_exits_2(tmp_path):
     with pytest.raises(SystemExit) as exc:
         cli.main([f, "--max-rps", "0"])
     assert exc.value.code == 2
+
+
+def test_stdin_dash_reads_bibtex(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys,
+        "stdin",
+        io.StringIO("@article{k, author={Doe, J}, year={2020}, doi={10.1234/y}}"),
+    )
+    assert cli.main(["-", "--dry-run"]) == 0
+    assert "would check 1 entries" in capsys.readouterr().out
+
+
+def test_stdin_empty_exits_2(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", io.StringIO("   \n  "))
+    assert cli.main(["-"]) == 2
+    assert "no input on stdin" in capsys.readouterr().err
+
+
+def test_stdin_doi_format_honored(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "stdin", io.StringIO("10.3390/plants13060869\n"))
+    assert cli.main(["-", "--format", "doi", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "would check 1 entries" in out
+    assert "1 via DOI" in out
 
 
 def test_python_m_entrypoint():
