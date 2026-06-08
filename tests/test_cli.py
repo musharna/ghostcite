@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 
 from ghostcite import cli
@@ -97,3 +100,14 @@ def test_version_flag_prints_and_exits_0(capsys):
         cli.main(["--version"])
     assert exc.value.code == 0
     assert capsys.readouterr().out.strip() == "ghostcite 0.1.0"
+
+
+def test_python_m_entrypoint():
+    """Real-execution boundary: `python -m ghostcite --version` works via __main__."""
+    result = subprocess.run(
+        [sys.executable, "-m", "ghostcite", "--version"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "ghostcite 0.1.0" in result.stdout
