@@ -114,6 +114,35 @@ def test_diacritic_only_is_tier_c():
     assert [f.tier for f in findings] == [Tier.COSMETIC]
 
 
+def test_all_caps_canonical_surname_is_not_false_positive():
+    # CrossRef/PubMed sometimes return the family name in ALL CAPS ("TURING").
+    # That is a pure surname, never initials, so it must NOT be initials-stripped
+    # to empty and flagged Tier A when the claim is correct.
+    c = _cit(claimed_first_author="Turing")
+    assert evaluate(c, _rec(authors=["TURING", "HOPPER"])) == []
+
+
+def test_all_caps_canonical_with_diacritic_claim_resolves():
+    # All-caps canonical family + diacritic-bearing claim still resolves
+    # (cosmetic diacritic at most, never Tier A).
+    c = _cit(claimed_first_author="Bürger", claimed_year=2025, claimed_title="x")
+    findings = evaluate(c, _rec(authors=["BURGER"], year=2025, title="x"))
+    assert Tier.AUTHOR not in [f.tier for f in findings]
+
+
+def test_claimed_side_initials_still_tolerated_regression():
+    # Regression: claimed-side initials ("Smith J") must still match bare "Smith".
+    c = _cit(claimed_first_author="Smith J")
+    assert evaluate(c, _rec(authors=["Smith"])) == []
+
+
+def test_genuine_mismatch_still_tier_a():
+    # A real author disagreement must still be flagged Tier A.
+    c = _cit(claimed_first_author="Li")
+    findings = evaluate(c, _rec(authors=["Chen"]))
+    assert [f.tier for f in findings] == [Tier.AUTHOR]
+
+
 def test_retraction_is_tier_r():
     c = _cit(claimed_first_author="Chen")
     findings = evaluate(c, _rec(retracted=True))

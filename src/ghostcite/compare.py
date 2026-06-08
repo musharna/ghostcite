@@ -39,11 +39,21 @@ def _surname_key(name: str | None) -> str:
 
 def _surname_raw(name: str | None) -> str:
     """Initial-stripped surname, diacritics PRESERVED, lowercased, despaced.
-    Used to tell a genuine diacritic/spelling difference from a pure
-    initials-only difference once `_surname_key` has matched the keys."""
+    For the CLAIMED author: drops initials ("Smith J" → "smith") so an
+    initials-only difference doesn't read as a diacritic difference once
+    `_surname_key` has matched the keys."""
     if not name:
         return ""
     return "".join(_surname_tokens(name)).lower()
+
+
+def _canonical_raw(name: str | None) -> str:
+    """Like `_surname_raw` but for a CANONICAL family name (CrossRef/PubMed):
+    diacritics preserved, lowercased, despaced, NO initials-stripping — an
+    all-caps family ("BURGER") is a real surname, not an initials cluster."""
+    if not name:
+        return ""
+    return "".join(name.split()).lower()
 
 
 def _title_tokens(title: str) -> set[str]:
@@ -124,16 +134,20 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
         # keep the precondition explicit so the type is narrowed).
         return []
     claimed_raw = citation.claimed_first_author.strip()
+    # Asymmetric normalization: the claimed author is free text that may carry
+    # initials ("Smith JA") → initials-strip it. A CrossRef `family` field is
+    # ALWAYS a pure surname (even when ALL CAPS) → diacritic-fold only, never
+    # initials-strip (else "TURING" → "" and a correct claim is flagged Tier A).
     claimed = _surname_key(claimed_raw)
     first_raw = families_raw[0] if families_raw else ""
-    first = _surname_key(first_raw)
-    all_norm = [_surname_key(a) for a in families_raw]
+    first = normalize_surname(first_raw)
+    all_norm = [normalize_surname(a) for a in families_raw]
 
     conf = " (low-confidence match)" if canonical.low_confidence else ""
 
     if claimed == first:
         # First-author matches after normalization.
-        if _surname_raw(claimed_raw) != _surname_raw(first_raw):
+        if _surname_raw(claimed_raw) != _canonical_raw(first_raw):
             return [
                 Finding(
                     citation,
@@ -215,7 +229,9 @@ def cross_check_pubmed(
         return
 
     claimed_author = _surname_key(citation.claimed_first_author)
-    pm_author = _surname_key(pubmed.first_author_surname)
+    # PubMed's surname field is a pure surname (possibly ALL CAPS) — fold only,
+    # don't initials-strip it (see _author_year for the same asymmetry).
+    pm_author = normalize_surname(pubmed.first_author_surname)
     claimed_year = citation.claimed_year
 
     # 1. Retraction / expression of concern — OR-combine with CrossRef.

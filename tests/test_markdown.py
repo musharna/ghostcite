@@ -24,6 +24,19 @@ def test_ref_without_doi():
     assert c.doi is None
 
 
+def test_balanced_parens_doi_not_truncated():
+    # S-DOI with balanced parens inside a markdown bullet must not truncate.
+    text = "- **Smith J (1997).** Title. https://doi.org/10.1016/s0140-6736(97)11096-0\n"
+    c = parse_markdown(text)[0]
+    assert c.doi == "10.1016/s0140-6736(97)11096-0"
+
+
+def test_parenthesized_doi_in_prose_strips_trailing_paren():
+    text = "- **Chen M (2024).** Title (10.3390/plants13060869).\n"
+    c = parse_markdown(text)[0]
+    assert c.doi == "10.3390/plants13060869"
+
+
 def test_lowercase_particle_surname():
     # Leading multi-word particle ("van der") plus the capitalized surname
     # must be captured as a single string, not dropped or truncated to one word.

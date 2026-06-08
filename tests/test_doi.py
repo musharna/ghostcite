@@ -20,6 +20,26 @@ def test_extracts_dois_only():
     assert all(c.claimed_first_author is None for c in cites)
 
 
+def test_balanced_parens_doi_not_truncated():
+    # Old Elsevier/Lancet S-DOIs carry balanced parens and must survive intact.
+    text = "10.1016/s0140-6736(97)11096-0\n"
+    dois = [c.doi for c in parse_doi_list(text)]
+    assert dois == ["10.1016/s0140-6736(97)11096-0"]
+
+
+def test_unbalanced_trailing_paren_stripped():
+    # A DOI wrapped in prose parens: the trailing unbalanced ")" must be trimmed.
+    text = "(10.3390/plants13060869)\n"
+    dois = [c.doi for c in parse_doi_list(text)]
+    assert dois == ["10.3390/plants13060869"]
+
+
+def test_trailing_period_stripped():
+    text = "10.1234/foo.\n"
+    dois = [c.doi for c in parse_doi_list(text)]
+    assert dois == ["10.1234/foo"]
+
+
 def test_short_prefix_is_not_a_doi():
     # Real DOI registrant prefixes are always >= 4 digits. A 3-digit prefix
     # like "10.5/x" is noise and must not be extracted, while genuine
