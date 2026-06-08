@@ -45,6 +45,8 @@ def render_text(findings: list[Finding], total: int, with_doi: int, *, color: bo
         doi = f"  [{f.citation.doi}]" if f.citation.doi else ""
         glyph = _colorize(_GLYPH[f.tier], f.tier, color)
         lines.append(f"  {glyph}  {loc}  {who} {yr}  →  {f.message}{doi}")
+        if f.cross_check:
+            lines.append(f"        ↳ {f.cross_check}")
     counts: dict[str, int] = {}
     for f in findings:
         counts[f.tier.value] = counts.get(f.tier.value, 0) + 1
@@ -65,6 +67,7 @@ def render_json(findings: list[Finding], total: int, with_doi: int) -> str:
                 "claimed_year": f.citation.claimed_year,
                 "doi": f.citation.doi,
                 "message": f.message,
+                "cross_check": f.cross_check,
                 "canonical_authors": f.canonical.authors if f.canonical else None,
                 "canonical_year": f.canonical.year if f.canonical else None,
             }

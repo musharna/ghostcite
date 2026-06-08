@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 
-from ghostcite.models import CanonicalRecord, Citation, Finding, Tier
+from ghostcite.models import CanonicalRecord, Citation, Finding, PubMedRecord, Tier
 
 
 def normalize_surname(name: str | None) -> str:
@@ -185,3 +185,109 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
             f"CrossRef first author is {first_raw}{conf}",
         )
     ]
+
+
+def cross_check_pubmed(
+    citation: Citation,
+    canonical: CanonicalRecord | None,
+    findings: list[Finding],
+    pubmed: PubMedRecord | None,
+) -> None:
+    """Reconcile CrossRef-derived ``findings`` against a PubMed record in place.
+
+    Annotates existing findings with a ``cross_check`` note and/or appends NEW
+    findings (author/year disagreements PubMed sees that CrossRef didn't,
+    retractions PubMed flags). Pure aside from mutating ``findings``; no I/O.
+
+    Semantics:
+      * CrossRef had no record (UNRESOLVABLE) + PubMed resolves → annotate the
+        unresolvable finding: evaluable via PubMed (low confidence).
+      * An AUTHOR/YEAR finding that PubMed *corroborates* (PubMed agrees with
+        CrossRef, not the claim) → note "corroborated by PubMed", tier kept.
+      * An AUTHOR/YEAR finding that PubMed *contradicts* (PubMed agrees with the
+        cited claim) → conflict note, tier kept (manual review).
+      * No CrossRef author/year finding but PubMed disagrees with the claim →
+        NEW AUTHOR/YEAR finding "raised by PubMed".
+      * Retraction is OR-combined: PubMed-flagged retraction/EoC appends a
+        RETRACTION finding if CrossRef didn't already.
+    """
+    if pubmed is None:
+        return
+
+    claimed_author = _surname_key(citation.claimed_first_author)
+    pm_author = normalize_surname(pubmed.first_author_surname)
+    claimed_year = citation.claimed_year
+
+    # 1. Retraction / expression of concern — OR-combine with CrossRef.
+    if (pubmed.retracted or pubmed.eoc) and not any(f.tier is Tier.RETRACTION for f in findings):
+        label = "RETRACTED" if pubmed.retracted else "Expression of concern"
+        findings.append(
+            Finding(
+                citation,
+                Tier.RETRACTION,
+                canonical,
+                f"{label} per PubMed",
+                cross_check="raised by PubMed",
+            )
+        )
+
+    # 2. CrossRef had no usable record → PubMed makes it evaluable.
+    if canonical is None:
+        for f in findings:
+            if f.tier is Tier.UNRESOLVABLE:
+                f.cross_check = "resolved via PubMed; CrossRef had no record (low confidence)"
+        return
+
+    author_year_findings = [f for f in findings if f.tier in (Tier.AUTHOR, Tier.YEAR)]
+
+    # 3. Existing AUTHOR/YEAR findings — does PubMed back CrossRef or the claim?
+    for f in author_year_findings:
+        if f.tier is Tier.AUTHOR and pm_author and claimed_author:
+            if pm_author == claimed_author:
+                f.cross_check = (
+                    "⚠ PubMed agrees with the cited author — CrossRef and PubMed "
+                    "conflict; verify manually"
+                )
+            else:
+                f.cross_check = "corroborated by PubMed"
+        elif f.tier is Tier.YEAR and pubmed.year and claimed_year:
+            if pubmed.year == claimed_year:
+                f.cross_check = (
+                    "⚠ PubMed agrees with the cited year — CrossRef and PubMed "
+                    "conflict; verify manually"
+                )
+            else:
+                f.cross_check = "corroborated by PubMed"
+
+    # 4. CrossRef raised no author finding but PubMed disagrees with the claim.
+    has_author_finding = any(f.tier is Tier.AUTHOR for f in findings)
+    if not has_author_finding and claimed_author and pm_author and pm_author != claimed_author:
+        findings.append(
+            Finding(
+                citation,
+                Tier.AUTHOR,
+                canonical,
+                f"PubMed first author is {pubmed.first_author_surname}",
+                cross_check="raised by PubMed",
+            )
+        )
+
+    # 5. CrossRef raised no year finding but PubMed disagrees with the claimed year.
+    has_year_finding = any(f.tier is Tier.YEAR for f in findings)
+    if (
+        not has_year_finding
+        and claimed_year
+        and pubmed.year
+        and pubmed.year != claimed_year
+        # Only when the author lines up — otherwise the author finding carries it.
+        and (not pm_author or not claimed_author or pm_author == claimed_author)
+    ):
+        findings.append(
+            Finding(
+                citation,
+                Tier.YEAR,
+                canonical,
+                f"PubMed year is {pubmed.year}",
+                cross_check="raised by PubMed",
+            )
+        )

@@ -3,6 +3,7 @@ import pytest
 from ghostcite.compare import evaluate
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Citation, Tier
+from ghostcite.pubmed import PubMedClient
 
 pytestmark = pytest.mark.live
 
@@ -42,6 +43,14 @@ def test_pacer_learns_interval_from_real_headers():
         client.lookup_by_doi("10.3390/plants13060869")
         client.lookup_by_doi("10.3390/plants13060869")
         assert client._pacer._min_interval == pytest.approx(0.2)
+
+
+def test_pubmed_lookup_by_doi_resolves_chen_2024():
+    with PubMedClient() as pm:
+        rec = pm.lookup_by_doi("10.3390/plants13060869")
+    assert rec is not None
+    assert rec.first_author_surname == "chen"
+    assert rec.year == 2024
 
 
 def test_known_retracted_doi_flags_R():

@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from contextlib import ExitStack
 
 from ghostcite import __version__
-from ghostcite.compare import evaluate
+from ghostcite.compare import cross_check_pubmed, evaluate
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
 from ghostcite.parsers import parse
+from ghostcite.pubmed import PubMedClient
 from ghostcite.report import render_json, render_text
 
 _TIER_BY_NAME = {
@@ -48,6 +50,22 @@ def _parse_args(argv):
         choices=["auto", "always", "never"],
         default="auto",
         help="colorize tier glyphs (default auto; honors NO_COLOR)",
+    )
+    p.add_argument(
+        "--cross-check",
+        choices=["none", "pubmed"],
+        default="none",
+        help="second source to corroborate findings against (default none)",
+    )
+    p.add_argument(
+        "--ncbi-email",
+        default=os.environ.get("NCBI_EMAIL"),
+        help="contact email for NCBI E-utilities (or set NCBI_EMAIL)",
+    )
+    p.add_argument(
+        "--ncbi-api-key",
+        default=os.environ.get("NCBI_API_KEY"),
+        help="NCBI API key for higher rate limits (or set NCBI_API_KEY)",
     )
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
@@ -101,8 +119,19 @@ def main(argv=None) -> int:
         return 0
 
     findings: list[Finding] = []
+    use_pubmed = args.cross_check == "pubmed"
     try:
-        with CrossRefClient(max_rps=args.max_rps) as client:
+        with ExitStack() as stack:
+            client = stack.enter_context(CrossRefClient(max_rps=args.max_rps))
+            pmclient = None
+            if use_pubmed:
+                pmclient = stack.enter_context(
+                    PubMedClient(
+                        max_rps=args.max_rps,
+                        email=args.ncbi_email,
+                        api_key=args.ncbi_api_key,
+                    )
+                )
             for c in citations:
                 if c.doi:
                     rec = client.lookup_by_doi(c.doi)
@@ -110,9 +139,18 @@ def main(argv=None) -> int:
                     rec = client.search_bibliographic(
                         c.claimed_first_author, c.claimed_year, c.claimed_title
                     )
-                findings.extend(evaluate(c, rec))
+                cite_findings = evaluate(c, rec)
+                if pmclient is not None:
+                    if c.doi:
+                        pm = pmclient.lookup_by_doi(c.doi)
+                    else:
+                        pm = pmclient.lookup_by_doi_meta(
+                            c.claimed_first_author, c.claimed_year, c.claimed_title
+                        )
+                    cross_check_pubmed(c, rec, cite_findings, pm)
+                findings.extend(cite_findings)
     except Exception as e:  # fail-loud: surface, keep partial findings
-        print(f"ghostcite: CrossRef error: {e}", file=sys.stderr)
+        print(f"ghostcite: cross-check error: {e}", file=sys.stderr)
         out = (
             render_json(findings, len(citations), with_doi)
             if args.json
@@ -124,7 +162,7 @@ def main(argv=None) -> int:
     out = (
         render_json(findings, len(citations), with_doi)
         if args.json
-        else render_text(findings, len(citations), with_doi)
+        else render_text(findings, len(citations), with_doi, color=color)
     )
     print(out)
 

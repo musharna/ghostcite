@@ -36,8 +36,19 @@ class CanonicalRecord:
 
 
 @dataclass
+class PubMedRecord:
+    pmid: str
+    first_author_surname: str | None = None
+    year: int | None = None
+    title: str | None = None
+    retracted: bool = False
+    eoc: bool = False  # expression of concern
+
+
+@dataclass
 class Finding:
     citation: Citation
     tier: Tier
     canonical: CanonicalRecord | None
     message: str
+    cross_check: str | None = None
