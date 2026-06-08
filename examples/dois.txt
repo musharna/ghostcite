@@ -1,0 +1,6 @@
+# One DOI per line. A bare DOI list yields lookup + retraction sweep only
+# (nothing is "claimed", so author/year mismatches can't be detected).
+# Lines starting with '#' are ignored; 'doi:' prefixes and DOI URLs are accepted too.
+10.3390/plants13060869
+10.1038/s41586-021-03819-2
+10.1186/s13059-019-1832-y
