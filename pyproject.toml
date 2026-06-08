@@ -25,6 +25,8 @@ dependencies = ["httpx>=0.24"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pytest-httpx>=0.30", "pytest-cov>=4", "ruff", "mypy"]
+# Optional: only needed to regenerate the README demo card (examples/gen_demo_card.py).
+viz = ["pillow>=10"]
 
 [project.scripts]
 ghostcite = "ghostcite.cli:main"
