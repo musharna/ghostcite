@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from ghostcite import __version__
@@ -42,10 +43,31 @@ def _parse_args(argv):
         default=None,
         help="cap outbound requests per second (proactive rate pacing)",
     )
+    p.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="colorize tier glyphs (default auto; honors NO_COLOR)",
+    )
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
         p.error("--max-rps must be > 0")
     return args
+
+
+def _want_color(mode: str) -> bool:
+    """Resolve --color {auto,always,never} against NO_COLOR + TTY state.
+
+    NO_COLOR (presence, any value) disables color even when ``always`` is set,
+    per https://no-color.org/.
+    """
+    if "NO_COLOR" in os.environ:
+        return False
+    if mode == "always":
+        return True
+    if mode == "never":
+        return False
+    return sys.stdout.isatty() and os.environ.get("TERM") != "dumb"
 
 
 def main(argv=None) -> int:
@@ -69,6 +91,7 @@ def main(argv=None) -> int:
         print(f"ghostcite: {e}", file=sys.stderr)
         return 2
 
+    color = _want_color(args.color)
     with_doi = sum(1 for c in citations if c.doi)
     if args.dry_run:
         print(
@@ -93,7 +116,7 @@ def main(argv=None) -> int:
         out = (
             render_json(findings, len(citations), with_doi)
             if args.json
-            else render_text(findings, len(citations), with_doi)
+            else render_text(findings, len(citations), with_doi, color=color)
         )
         print(out)
         return 2

@@ -12,8 +12,27 @@ _GLYPH = {
     Tier.UNRESOLVABLE: "? U",
 }
 
+_ANSI = {
+    Tier.AUTHOR: "\033[31m",
+    Tier.YEAR: "\033[31m",
+    Tier.RETRACTION: "\033[35m",
+    Tier.COSMETIC: "\033[2m",
+    Tier.UNRESOLVABLE: "\033[2m",
+}
+_RESET = "\033[0m"
 
-def render_text(findings: list[Finding], total: int, with_doi: int) -> str:
+
+def _colorize(glyph: str, tier: Tier, enabled: bool) -> str:
+    """Wrap a tier glyph (and only the glyph) in its ANSI color when enabled."""
+    if not enabled:
+        return glyph
+    code = _ANSI.get(tier)
+    if not code:
+        return glyph
+    return f"{code}{glyph}{_RESET}"
+
+
+def render_text(findings: list[Finding], total: int, with_doi: int, *, color: bool = False) -> str:
     findings = [f for f in findings if f.tier is not Tier.OK]
     lines = [f"ghostcite: {total} entries, {with_doi} with DOIs"]
     if not findings:
@@ -24,7 +43,8 @@ def render_text(findings: list[Finding], total: int, with_doi: int) -> str:
         who = f.citation.claimed_first_author or f.citation.doi or "?"
         yr = f"({f.citation.claimed_year})" if f.citation.claimed_year else ""
         doi = f"  [{f.citation.doi}]" if f.citation.doi else ""
-        lines.append(f"  {_GLYPH[f.tier]}  {loc}  {who} {yr}  →  {f.message}{doi}")
+        glyph = _colorize(_GLYPH[f.tier], f.tier, color)
+        lines.append(f"  {glyph}  {loc}  {who} {yr}  →  {f.message}{doi}")
     counts: dict[str, int] = {}
     for f in findings:
         counts[f.tier.value] = counts.get(f.tier.value, 0) + 1
