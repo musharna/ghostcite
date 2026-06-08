@@ -1,0 +1,52 @@
+from __future__ import annotations
+
+import json
+
+from ghostcite.models import Finding, Tier
+
+_GLYPH = {
+    Tier.AUTHOR: "✗ A",
+    Tier.YEAR: "✗ B",
+    Tier.COSMETIC: "· C",
+    Tier.RETRACTION: "⚠ R",
+    Tier.UNRESOLVABLE: "? U",
+}
+
+
+def render_text(findings: list[Finding], total: int, with_doi: int) -> str:
+    lines = [f"ghostcite: {total} entries, {with_doi} with DOIs"]
+    if not findings:
+        lines.append("  0 findings — clean")
+        return "\n".join(lines)
+    for f in sorted(findings, key=lambda x: x.citation.source_line or 0):
+        loc = f"L{f.citation.source_line}" if f.citation.source_line else "—"
+        who = f.citation.claimed_first_author or f.citation.doi or "?"
+        yr = f"({f.citation.claimed_year})" if f.citation.claimed_year else ""
+        doi = f"  [{f.citation.doi}]" if f.citation.doi else ""
+        lines.append(f"  {_GLYPH[f.tier]}  {loc}  {who} {yr}  →  {f.message}{doi}")
+    counts: dict[str, int] = {}
+    for f in findings:
+        counts[f.tier.value] = counts.get(f.tier.value, 0) + 1
+    summary = " · ".join(f"{n} {t}" for t, n in sorted(counts.items()))
+    lines.append(f"  {summary}")
+    return "\n".join(lines)
+
+
+def render_json(findings: list[Finding], total: int, with_doi: int) -> str:
+    payload = {
+        "summary": {"total": total, "with_doi": with_doi, "findings": len(findings)},
+        "findings": [
+            {
+                "tier": f.tier.value,
+                "line": f.citation.source_line,
+                "claimed_author": f.citation.claimed_first_author,
+                "claimed_year": f.citation.claimed_year,
+                "doi": f.citation.doi,
+                "message": f.message,
+                "canonical_authors": f.canonical.authors if f.canonical else None,
+                "canonical_year": f.canonical.year if f.canonical else None,
+            }
+            for f in findings
+        ],
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False)
