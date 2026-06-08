@@ -24,7 +24,7 @@ body:
         - CLI (ghostcite command)
         - CrossRef lookup
         - PubMed cross-check
-        - BibTeX / RIS parser
+        - Input parser (BibTeX / Markdown / DOI list)
         - output / formatting
         - not sure
     validations:
