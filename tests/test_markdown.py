@@ -22,3 +22,12 @@ def test_ref_without_doi():
     assert c.claimed_first_author == "Ngou"
     assert c.claimed_year == 2021
     assert c.doi is None
+
+
+def test_lowercase_particle_surname():
+    # Leading multi-word particle ("van der") plus the capitalized surname
+    # must be captured as a single string, not dropped or truncated to one word.
+    text = "- **van der Berg J (2020).** Title. https://doi.org/10.1234/abcd\n"
+    c = parse_markdown(text)[0]
+    assert c.claimed_first_author == "van der Berg"
+    assert c.claimed_year == 2020

@@ -18,3 +18,12 @@ def test_extracts_dois_only():
         "10.1093/bib/bbx115",
     ]
     assert all(c.claimed_first_author is None for c in cites)
+
+
+def test_short_prefix_is_not_a_doi():
+    # Real DOI registrant prefixes are always >= 4 digits. A 3-digit prefix
+    # like "10.5/x" is noise and must not be extracted, while genuine
+    # 4-digit-prefix DOIs still are.
+    text = "10.5/x\n10.3390/plants13060869\n"
+    dois = [c.doi for c in parse_doi_list(text)]
+    assert dois == ["10.3390/plants13060869"]

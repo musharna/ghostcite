@@ -76,6 +76,22 @@ def test_author_mismatch_is_tier_a():
     assert "Chen" in findings[0].message
 
 
+def test_trailing_initials_do_not_false_positive():
+    # "Smith J", "J Smith", "Smith JA" all carry trailing/leading single-letter
+    # initials and must compare equal to the canonical family name "Smith".
+    rec = _rec(authors=["Smith", "Zhang"])
+    for claimed in ("Smith J", "J Smith", "Smith JA"):
+        c = _cit(claimed_first_author=claimed)
+        assert evaluate(c, rec) == [], f"{claimed!r} should be OK"
+
+
+def test_initials_stripping_does_not_mask_real_mismatch():
+    # Stripping initials must NOT turn a genuine author mismatch into OK.
+    c = _cit(claimed_first_author="Li J")
+    findings = evaluate(c, _rec(authors=["Chen", "Zhang"]))
+    assert [f.tier for f in findings] == [Tier.AUTHOR]
+
+
 def test_wrong_doi_annotation_when_title_diverges():
     c = _cit(
         claimed_first_author="Clarke", claimed_title="Arabidopsis immunity to broomrape"

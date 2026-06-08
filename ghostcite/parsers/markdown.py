@@ -7,8 +7,12 @@ from ghostcite.models import Citation
 _BULLET = re.compile(r"^\s*[-*]\s+(.*)$")
 _YEAR = re.compile(r"\((\d{4})[a-z]?\)")
 _DOI = re.compile(r"\b(10\.\d{4,9}/[^\s)>\"]+)", re.IGNORECASE)
-# Leading author surname: first capitalized word(s) before an initial or comma.
-_FIRST_AUTHOR = re.compile(r"^\**\s*([A-Z][A-Za-zÀ-ÿ'’-]+)")
+# Leading author surname: an optional multi-word lowercase particle ("van der",
+# "de la", etc.) followed by the capitalized surname, captured as one string.
+_PARTICLES = "van|von|de|der|del|della|di|da|dos|du|la|le|den|ter|ten"
+# Particles are matched case-insensitively (inline (?i:...)); the surname itself
+# must still start with a capital letter so plain lowercase words aren't captured.
+_FIRST_AUTHOR = re.compile(rf"^\**\s*((?:(?i:{_PARTICLES})\s+)*[A-Z][A-Za-zÀ-ÿ'’-]+)")
 
 
 def parse_markdown(text: str) -> list[Citation]:

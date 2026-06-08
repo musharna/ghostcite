@@ -14,6 +14,38 @@ def normalize_surname(name: str | None) -> str:
     return "".join(c for c in ascii_only.lower() if c.isalpha())
 
 
+def _is_initials(token: str) -> bool:
+    """True if a token is an initials cluster, e.g. "J", "J.", "JA", "J.A.".
+    Single letter, or all-uppercase letters after stripping dots — a real
+    surname ("Li", "Berg") is mixed-case, not all-caps."""
+    bare = token.replace(".", "")
+    if not bare or not bare.isalpha():
+        return False
+    return len(bare) == 1 or bare.isupper()
+
+
+def _surname_tokens(name: str) -> list[str]:
+    return [t for t in name.split() if not _is_initials(t)]
+
+
+def _surname_key(name: str | None) -> str:
+    """Surname comparison key: drop standalone initial tokens
+    (e.g. "Smith J", "J Smith", "Smith JA") before normalizing, so a claimed
+    author carrying initials still matches a bare CrossRef family name."""
+    if not name:
+        return ""
+    return normalize_surname(" ".join(_surname_tokens(name)))
+
+
+def _surname_raw(name: str | None) -> str:
+    """Initial-stripped surname, diacritics PRESERVED, lowercased, despaced.
+    Used to tell a genuine diacritic/spelling difference from a pure
+    initials-only difference once `_surname_key` has matched the keys."""
+    if not name:
+        return ""
+    return "".join(_surname_tokens(name)).lower()
+
+
 def _title_tokens(title: str) -> set[str]:
     decomposed = unicodedata.normalize("NFKD", title)
     ascii_only = "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
@@ -80,17 +112,17 @@ def evaluate(citation: Citation, canonical: CanonicalRecord | None) -> list[Find
 
 def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding]:
     claimed_raw = citation.claimed_first_author.strip()
-    claimed = normalize_surname(claimed_raw)
+    claimed = _surname_key(claimed_raw)
     families_raw = canonical.authors or []
     first_raw = families_raw[0] if families_raw else ""
-    first = normalize_surname(first_raw)
-    all_norm = [normalize_surname(a) for a in families_raw]
+    first = _surname_key(first_raw)
+    all_norm = [_surname_key(a) for a in families_raw]
 
     conf = " (low-confidence match)" if canonical.low_confidence else ""
 
     if claimed == first:
         # First-author matches after normalization.
-        if claimed_raw.lower().replace(" ", "") != first_raw.lower().replace(" ", ""):
+        if _surname_raw(claimed_raw) != _surname_raw(first_raw):
             return [
                 Finding(
                     citation,
