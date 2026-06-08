@@ -9,7 +9,7 @@
 
 **Catch ghost citations — right DOI, wrong author.**
 
-<p align="center"><img src="examples/assets/demo.png" alt="ghostcite catching a ghost citation" width="800"></p>
+<p align="center"><img src="examples/assets/demo.gif" alt="ghostcite catching a ghost citation" width="800"></p>
 
 `ghostcite` is a deterministic, **no-LLM** command-line tool that cross-checks a
 bibliography's _claimed_ author and year against CrossRef's canonical record for
