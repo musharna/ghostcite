@@ -24,7 +24,7 @@ classifiers = [
 dependencies = ["httpx>=0.24"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-httpx>=0.30", "ruff", "mypy"]
+dev = ["pytest>=7", "pytest-httpx>=0.30", "pytest-cov>=4", "ruff", "mypy"]
 
 [project.scripts]
 ghostcite = "ghostcite.cli:main"
@@ -44,6 +44,15 @@ packages = ["src/ghostcite"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["live: hits the real CrossRef API (deselect with -m 'not live')"]
+
+[tool.coverage.run]
+source = ["ghostcite"]
+
+[tool.coverage.report]
+# Measured floor is 89% (`pytest --cov`, not-live suite); 85 leaves headroom
+# so small non-live deltas don't break the gate.
+fail_under = 85
+show_missing = true
 
 [tool.ruff]
 line-length = 100
