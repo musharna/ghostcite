@@ -142,8 +142,8 @@ Each unit is independently testable: parsers take text → `Citation[]`; `crossr
 - **Scrub gate** before push: no personal email (generic polite-pool UA), no Zotero lib id, no home paths, no API-key reads. (These were the couplings in the original `verify_citations`; ghostcite is built clean from scratch, so the gate is a confirmation, not a removal.)
 - **Bonus / follow-up (not v1 scope):** repoint CLAUDE.md line 30 ("Reusable bib auditor: `/tmp/audit_refs_11.py`") to the installed `ghostcite`, and optionally wire it into the "triple-check every citation" rule — recovering the lost capability in a persistent location.
 
-## 11. Open decisions (flag before build)
+## 11. Resolved decisions (locked 2026-06-08)
 
-1. **Name:** `ghostcite` (proposed). Alternatives: `refcheck`, `citecheck`, `doicheck`.
-2. **BibTeX parser:** vendored-minimal (zero deps) vs `bibtexparser` dependency. Lean toward minimal-internal for the common fields (author/year/doi/title), since we only need 4 fields.
-3. **No-DOI bibliographic resolution:** include best-effort CrossRef search in v1, or defer (emit Tier U for all no-DOI entries in v1)? Leaning: include but mark low-confidence.
+1. **Name:** **`ghostcite`** — names the exact failure mode, memorable.
+2. **BibTeX parser:** **minimal internal parser, zero dependencies.** Extract only the four fields we need (`author`, `year`, `doi`, `title`) from `@…{}` entries. Keeps `pip install` dependency-light (only an HTTP client).
+3. **No-DOI bibliographic resolution:** **included in v1** via CrossRef `/works?query.bibliographic=…`, with every such resolution **flagged low-confidence** in the report (and never escalated above a warning on its own).
