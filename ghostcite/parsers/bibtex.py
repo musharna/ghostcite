@@ -4,8 +4,12 @@ import re
 
 from ghostcite.models import Citation
 
-_ENTRY = re.compile(r"@\w+\s*\{[^,]*,(?P<body>.*?)\n\}", re.DOTALL)
-_FIELD = re.compile(r"(\w+)\s*=\s*[{\"](.*?)[}\"]\s*,?\s*$", re.MULTILINE | re.DOTALL)
+# Entry body = everything after the first comma up to the closing brace that
+# precedes the next entry or end-of-input. Handles both multi-line and
+# single-line ("@article{k, a={x}, b={y}}") BibTeX shapes.
+_ENTRY = re.compile(r"@\w+\s*\{[^,]*,(?P<body>.*?)\}\s*(?=@|\Z)", re.DOTALL)
+# A field is key = {value} or key = "value"; brace/quote-delimited, no nesting.
+_FIELD = re.compile(r'(\w+)\s*=\s*(?:\{(.*?)\}|"(.*?)")', re.DOTALL)
 _DOI_CLEAN = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)\s*", re.IGNORECASE)
 
 
@@ -29,7 +33,10 @@ def parse_bibtex(text: str) -> list[Citation]:
     for m in _ENTRY.finditer(text):
         body = m.group("body")
         line_no = text[: m.start()].count("\n") + 1
-        fields = {k.lower(): " ".join(v.split()) for k, v in _FIELD.findall(body)}
+        fields = {
+            k.lower(): " ".join((bv or qv).split())
+            for k, bv, qv in _FIELD.findall(body)
+        }
         year = None
         if fields.get("year"):
             ym = re.search(r"\d{4}", fields["year"])
