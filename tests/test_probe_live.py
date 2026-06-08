@@ -36,6 +36,14 @@ def test_correct_citation_is_clean():
     assert evaluate(c, rec) == []
 
 
+def test_pacer_learns_interval_from_real_headers():
+    # Two sequential real lookups; CrossRef advertises 5 req / 1s → 0.2s floor.
+    with CrossRefClient() as client:
+        client.lookup_by_doi("10.3390/plants13060869")
+        client.lookup_by_doi("10.3390/plants13060869")
+        assert client._pacer._min_interval == pytest.approx(0.2)
+
+
 def test_known_retracted_doi_flags_R():
     # A well-known retracted paper (Wakefield 1998, Lancet). Verify CrossRef marks it.
     c = Citation(

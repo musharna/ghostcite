@@ -5,6 +5,7 @@ import time
 import httpx
 
 from ghostcite import __version__
+from ghostcite._pace import _Pacer
 from ghostcite.models import CanonicalRecord
 
 _BASE = "https://api.crossref.org"
@@ -67,12 +68,13 @@ def _record_from_message(message: dict, low_confidence: bool = False) -> Canonic
 
 
 class CrossRefClient:
-    def __init__(self, timeout: float = 20.0):
+    def __init__(self, timeout: float = 20.0, max_rps: float | None = None):
         self._client = httpx.Client(
             timeout=timeout,
             headers={"User-Agent": _UA},
             follow_redirects=True,
         )
+        self._pacer = _Pacer(max_rps)
 
     def __enter__(self) -> CrossRefClient:
         return self
@@ -83,11 +85,15 @@ class CrossRefClient:
     def _get(self, url: str, **kw) -> httpx.Response:
         """GET with a single retry on a transient 429/503, honoring Retry-After
         (capped at 60s). The caller handles status codes (e.g. 404)."""
+        self._pacer.wait()
         r = self._client.get(url, **kw)
+        self._pacer.update_from_headers(r.headers)
         if r.status_code in (429, 503):
             delay = min(int(r.headers.get("Retry-After", "5")), 60)
             time.sleep(delay)
+            self._pacer.wait()
             r = self._client.get(url, **kw)
+            self._pacer.update_from_headers(r.headers)
         return r
 
     def lookup_by_doi(self, doi: str) -> CanonicalRecord | None:

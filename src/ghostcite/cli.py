@@ -33,7 +33,16 @@ def _parse_args(argv):
         help="comma list of tiers that cause exit 1, or 'none' "
         "(choices: author,year,retraction,none)",
     )
-    return p.parse_args(argv)
+    p.add_argument(
+        "--max-rps",
+        type=float,
+        default=None,
+        help="cap outbound requests per second (proactive rate pacing)",
+    )
+    args = p.parse_args(argv)
+    if args.max_rps is not None and args.max_rps <= 0:
+        p.error("--max-rps must be > 0")
+    return args
 
 
 def main(argv=None) -> int:
@@ -61,7 +70,7 @@ def main(argv=None) -> int:
 
     findings: list[Finding] = []
     try:
-        with CrossRefClient() as client:
+        with CrossRefClient(max_rps=args.max_rps) as client:
             for c in citations:
                 if c.doi:
                     rec = client.lookup_by_doi(c.doi)

@@ -19,6 +19,9 @@ class FakeClient:
         ),
     }
 
+    def __init__(self, *a, **kw):
+        pass
+
     def __enter__(self):
         return self
 
@@ -100,6 +103,13 @@ def test_version_flag_prints_and_exits_0(capsys):
         cli.main(["--version"])
     assert exc.value.code == 0
     assert capsys.readouterr().out.strip() == "ghostcite 0.1.0"
+
+
+def test_max_rps_nonpositive_exits_2(tmp_path):
+    f = _write(tmp_path, "@article{k, author={Chen, M}, year={2024}, doi={10.1/x}}")
+    with pytest.raises(SystemExit) as exc:
+        cli.main([f, "--max-rps", "0"])
+    assert exc.value.code == 2
 
 
 def test_python_m_entrypoint():
