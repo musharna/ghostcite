@@ -32,4 +32,4 @@ runs:
 
     - name: Run ghostcite
       shell: bash
-      run: ghostcite --color always --fail-on "${{ inputs.fail-on }}" ${{ inputs.args }} ${{ inputs.paths }}
+      run: ghostcite --color always --fail-on "${{ inputs.fail-on }}" ${{ inputs.args }} "${{ inputs.paths }}"

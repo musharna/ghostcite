@@ -136,6 +136,14 @@ def test_claimed_side_initials_still_tolerated_regression():
     assert evaluate(c, _rec(authors=["Smith"])) == []
 
 
+def test_all_caps_lone_claimed_surname_is_not_false_positive():
+    # A claimed first author that is a single all-caps token ("LI", "MA", "WU")
+    # is a lone surname, never an initials cluster — it must not be stripped to
+    # an empty key and flagged Tier A when it actually matches the canonical.
+    c = _cit(claimed_first_author="LI")
+    assert evaluate(c, _rec(authors=["Li", "Wang"])) == []
+
+
 def test_genuine_mismatch_still_tier_a():
     # A real author disagreement must still be flagged Tier A.
     c = _cit(claimed_first_author="Li")

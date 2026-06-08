@@ -19,7 +19,7 @@ ghostcite is a read-only CLI. Its full external footprint is:
 
 - **Outbound HTTPS GET** to `api.crossref.org` (CrossRef metadata lookup).
 - **Outbound HTTPS GET** to `eutils.ncbi.nlm.nih.gov` (optional PubMed
-  cross-check, only when `--pubmed` / `NCBI_API_KEY` is supplied).
+  cross-check, only when `--cross-check pubmed` / `NCBI_API_KEY` is supplied).
 
 It stores nothing, runs no server, spawns no subprocesses, and executes no
 untrusted input. The only credential it touches is an optional

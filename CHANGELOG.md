@@ -18,8 +18,8 @@ Initial release.
   (e.g. `cat refs.bib | ghostcite -`).
 - Severity tiers: A (author mismatch), B (year mismatch), C (cosmetic fold-only),
   R (retraction / expression-of-concern), U (unresolvable / not verifiable).
-- Retraction and expression-of-concern detection via CrossRef `update-to` /
-  `relation` metadata.
+- Retraction and expression-of-concern detection via CrossRef `updated-by` /
+  `update-to` / `relation` metadata.
 - `--cross-check pubmed`: optional second source of truth via PubMed / NCBI
   E-utilities. Corroborates or conflicts CrossRef findings, can raise findings
   CrossRef missed, and supplies records for DOIs absent from CrossRef. Honors

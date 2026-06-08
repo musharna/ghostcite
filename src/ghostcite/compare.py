@@ -25,7 +25,14 @@ def _is_initials(token: str) -> bool:
 
 
 def _surname_tokens(name: str) -> list[str]:
-    return [t for t in name.split() if not _is_initials(t)]
+    # A lone token is always the surname, never an initials cluster — keep it
+    # even if it looks like initials (e.g. an all-caps "LI"). Only strip
+    # initials-looking tokens when there is at least one other token to fall
+    # back on ("Smith J" → ["Smith"], "J Smith" → ["Smith"]).
+    tokens = name.split()
+    if len(tokens) <= 1:
+        return tokens
+    return [t for t in tokens if not _is_initials(t)]
 
 
 def _surname_key(name: str | None) -> str:

@@ -4,20 +4,20 @@ Thanks for your interest in ghostcite — a deterministic, no-LLM Python CLI tha
 
 ## Dev environment setup
 
-ghostcite uses [`uv`](https://docs.astral.sh/uv/) for dependency management, and CI installs from the committed lockfile. Mirror it locally:
+ghostcite uses [`uv`](https://docs.astral.sh/uv/) for dependency management. CI resolves
+dependencies on the fly via `uv run --extra dev ...` (there is no committed lockfile;
+`uv.lock` is gitignored, so there is no frozen-lockfile gate). Mirror it locally:
 
 ```bash
 # install all extras the test/lint/type checks need
 uv sync --extra dev
 ```
 
-This installs the `dev` tools (pytest, pytest-httpx, ruff, mypy, coverage). Requires **Python ≥ 3.9** (CI tests 3.9, 3.10, 3.11, 3.12, and 3.13).
-
-If you change dependencies in `pyproject.toml`, refresh the lock with `uv lock` and commit `uv.lock` — CI runs `uv sync --frozen` and will fail on an out-of-date lockfile.
+This installs the `dev` tools (pytest, pytest-httpx, ruff, mypy, coverage). Requires **Python ≥ 3.9** (CI tests 3.9, 3.11, and 3.13).
 
 ## Running the checks (what CI runs)
 
-CI (`.github/workflows/ci.yml`) runs these on the 3.9–3.13 matrix. Run them locally before opening a PR:
+CI (`.github/workflows/ci.yml`) runs these (tests on the 3.9 / 3.11 / 3.13 matrix). Run them locally before opening a PR:
 
 ```bash
 # Lint + format check (gates the build)
@@ -30,7 +30,7 @@ uv run --extra dev pytest -m "not live" -q
 # Coverage gate (85 % floor)
 uv run --extra dev pytest -m "not live" --cov=ghostcite --cov-fail-under=85 -q
 
-# Type-check (non-blocking — informational)
+# Type-check (hard CI gate — type errors fail the build)
 uv run --extra dev mypy src/ghostcite
 ```
 
@@ -58,7 +58,7 @@ Ruff is configured in `pyproject.toml` (`line-length = 100`, `target-version = p
 
 ### Type-checking
 
-`uv run --extra dev mypy src/ghostcite` runs in CI but is **non-blocking** (the codebase is mid-typing-adoption). Don't regress it — prefer adding annotations to new/changed code so we can tighten it to a hard gate later.
+`uv run --extra dev mypy src/ghostcite` is a **hard CI gate** (the `types` job has no `continue-on-error`, so type errors fail the build). Keep it green — add annotations to new/changed code.
 
 ## Running ghostcite locally for manual testing
 
@@ -70,10 +70,10 @@ uv run --extra dev ghostcite refs.bib
 cat refs.bib | uv run --extra dev ghostcite -
 
 # With PubMed cross-check and colored output
-uv run --extra dev ghostcite --pubmed --color refs.bib
+uv run --extra dev ghostcite --cross-check pubmed --color always refs.bib
 
-# Show only flagged entries (quiet mode)
-uv run --extra dev ghostcite --quiet refs.bib
+# Never fail the exit code (report only, no CI gate)
+uv run --extra dev ghostcite --fail-on none refs.bib
 ```
 
 ## Commits & pull requests
