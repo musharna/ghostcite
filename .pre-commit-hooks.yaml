@@ -1,0 +1,10 @@
+- id: ghostcite
+  name: ghostcite (ghost-citation check)
+  description: Catch citations whose claimed author/year does not match the DOI's CrossRef record.
+  entry: ghostcite
+  language: python
+  files: \.(bib|md)$
+  # ghostcite's CLI takes exactly one positional bibliography file, but pre-commit
+  # would auto-append every matched staged file. Disable that and have users name
+  # their file explicitly via `args:` in .pre-commit-config.yaml.
+  pass_filenames: false
