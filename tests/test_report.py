@@ -1,7 +1,7 @@
 import json
 
-from ghostcite.models import Citation, CanonicalRecord, Finding, Tier
-from ghostcite.report import render_text, render_json
+from ghostcite.models import CanonicalRecord, Citation, Finding, Tier
+from ghostcite.report import render_json, render_text
 
 
 def _finding():

@@ -36,10 +36,7 @@ def parse_bibtex(text: str) -> list[Citation]:
     for m in _ENTRY.finditer(text):
         body = m.group("body")
         line_no = text[: m.start()].count("\n") + 1
-        fields = {
-            k.lower(): " ".join((bv or qv).split())
-            for k, bv, qv in _FIELD.findall(body)
-        }
+        fields = {k.lower(): " ".join((bv or qv).split()) for k, bv, qv in _FIELD.findall(body)}
         year = None
         if fields.get("year"):
             ym = re.search(r"\d{4}", fields["year"])
@@ -49,8 +46,7 @@ def parse_bibtex(text: str) -> list[Citation]:
                 raw=m.group(0).strip().splitlines()[0],
                 source_line=line_no,
                 doi=_normalize_doi(fields["doi"]) if fields.get("doi") else None,
-                claimed_first_author=_first_author_surname(fields.get("author", ""))
-                or None,
+                claimed_first_author=_first_author_surname(fields.get("author", "")) or None,
                 claimed_year=year,
                 claimed_title=fields.get("title") or None,
             )

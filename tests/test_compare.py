@@ -1,5 +1,5 @@
-from ghostcite.compare import normalize_surname, title_similar, evaluate
-from ghostcite.models import Citation, CanonicalRecord, Tier
+from ghostcite.compare import evaluate, normalize_surname, title_similar
+from ghostcite.models import CanonicalRecord, Citation, Tier
 
 
 def test_fold_diacritics():
@@ -93,12 +93,8 @@ def test_initials_stripping_does_not_mask_real_mismatch():
 
 
 def test_wrong_doi_annotation_when_title_diverges():
-    c = _cit(
-        claimed_first_author="Clarke", claimed_title="Arabidopsis immunity to broomrape"
-    )
-    rec = _rec(
-        authors=["Vaghefi"], title="A genome resource for Neocamarosporium betae"
-    )
+    c = _cit(claimed_first_author="Clarke", claimed_title="Arabidopsis immunity to broomrape")
+    rec = _rec(authors=["Vaghefi"], title="A genome resource for Neocamarosporium betae")
     findings = evaluate(c, rec)
     assert findings[0].tier is Tier.AUTHOR
     assert "possibly wrong DOI" in findings[0].message
@@ -145,9 +141,7 @@ def test_empty_author_record_is_tier_u():
 
 def test_retracted_record_with_empty_authors_yields_both():
     # Retraction fires independently of the missing-author guard.
-    findings = evaluate(
-        _cit(claimed_first_author="Smith"), _rec(authors=[], retracted=True)
-    )
+    findings = evaluate(_cit(claimed_first_author="Smith"), _rec(authors=[], retracted=True))
     tiers = [f.tier for f in findings]
     assert Tier.RETRACTION in tiers
     assert Tier.UNRESOLVABLE in tiers

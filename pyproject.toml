@@ -24,7 +24,7 @@ classifiers = [
 dependencies = ["httpx>=0.24"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-httpx>=0.30", "ruff"]
+dev = ["pytest>=7", "pytest-httpx>=0.30", "ruff", "mypy"]
 
 [project.scripts]
 ghostcite = "ghostcite.cli:main"
@@ -44,3 +44,22 @@ packages = ["src/ghostcite"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["live: hits the real CrossRef API (deselect with -m 'not live')"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["SIM117"]
+
+[tool.mypy]
+# mypy 2.x can no longer *target* 3.9; 3.10 is its floor. The package still
+# supports 3.9 at runtime (requires-python) and is linted for 3.9 syntax
+# (ruff target-version = py39); no 3.10-only typing is used here.
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true

@@ -4,8 +4,8 @@ import re
 
 from ghostcite.models import Citation
 from ghostcite.parsers.bibtex import parse_bibtex
-from ghostcite.parsers.markdown import parse_markdown
 from ghostcite.parsers.doi import parse_doi_list
+from ghostcite.parsers.markdown import parse_markdown
 
 _DOI_LINE = re.compile(
     r"^\s*(?:doi:|https?://(?:dx\.)?doi\.org/)?10\.\d{4,9}/\S+\s*$", re.IGNORECASE
@@ -16,9 +16,7 @@ def sniff(text: str) -> str:
     """Return 'bibtex' | 'markdown' | 'doi' from the content shape."""
     if re.search(r"@\w+\s*\{", text):
         return "bibtex"
-    nonblank = [
-        ln for ln in text.splitlines() if ln.strip() and not ln.lstrip().startswith("#")
-    ]
+    nonblank = [ln for ln in text.splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
     if nonblank and all(_DOI_LINE.match(ln) for ln in nonblank):
         return "doi"
     return "markdown"

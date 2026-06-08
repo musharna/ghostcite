@@ -1,4 +1,4 @@
-from ghostcite.models import Tier, Citation, CanonicalRecord, Finding
+from ghostcite.models import CanonicalRecord, Citation, Finding, Tier
 
 
 def test_tier_values():
@@ -17,8 +17,6 @@ def test_citation_defaults():
 
 def test_finding_holds_records():
     c = Citation(raw="x", doi="10.1/a", claimed_first_author="Li", claimed_year=2024)
-    rec = CanonicalRecord(
-        doi="10.1/a", authors=["Chen"], year=2024, title="T", journal="J"
-    )
+    rec = CanonicalRecord(doi="10.1/a", authors=["Chen"], year=2024, title="T", journal="J")
     f = Finding(citation=c, tier=Tier.AUTHOR, canonical=rec, message="msg")
     assert f.tier is Tier.AUTHOR and f.canonical.authors == ["Chen"]

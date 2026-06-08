@@ -14,9 +14,7 @@ WORK = {
 
 
 def test_lookup_by_doi_parses_record(httpx_mock):
-    httpx_mock.add_response(
-        url="https://api.crossref.org/works/10.3390/plants13060869", json=WORK
-    )
+    httpx_mock.add_response(url="https://api.crossref.org/works/10.3390/plants13060869", json=WORK)
     with CrossRefClient() as c:
         rec = c.lookup_by_doi("10.3390/plants13060869")
     assert rec.authors[0] == "Chen"
@@ -106,9 +104,7 @@ def test_search_bibliographic_marks_low_confidence(httpx_mock):
         json=SEARCH,
     )
     with CrossRefClient() as c:
-        rec = c.search_bibliographic(
-            "Ngou", 2021, "Mutual potentiation of plant immunity"
-        )
+        rec = c.search_bibliographic("Ngou", 2021, "Mutual potentiation of plant immunity")
     assert rec.doi == "10.1038/s41586-021-00001"
     assert rec.low_confidence is True
 

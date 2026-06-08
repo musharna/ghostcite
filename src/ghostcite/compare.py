@@ -82,17 +82,13 @@ def title_similar(a: str | None, b: str | None, threshold: float = 0.4) -> bool:
 def evaluate(citation: Citation, canonical: CanonicalRecord | None) -> list[Finding]:
     """Compare a claimed citation against the canonical record. Empty list = OK."""
     if canonical is None:
-        return [
-            Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable")
-        ]
+        return [Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable")]
 
     findings: list[Finding] = []
 
     # Retraction is orthogonal — fires regardless of author/year.
     if canonical.retracted:
-        findings.append(
-            Finding(citation, Tier.RETRACTION, canonical, "RETRACTED per CrossRef")
-        )
+        findings.append(Finding(citation, Tier.RETRACTION, canonical, "RETRACTED per CrossRef"))
     elif canonical.eoc:
         findings.append(
             Finding(
@@ -123,6 +119,10 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
                 "CrossRef record has no author data — author not verifiable",
             )
         ]
+    if not citation.claimed_first_author:
+        # No claimed author to verify against (caller already guards this, but
+        # keep the precondition explicit so the type is narrowed).
+        return []
     claimed_raw = citation.claimed_first_author.strip()
     claimed = _surname_key(claimed_raw)
     first_raw = families_raw[0] if families_raw else ""
@@ -143,11 +143,7 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
                 )
             ]
         # True match → check year.
-        if (
-            citation.claimed_year
-            and canonical.year
-            and citation.claimed_year != canonical.year
-        ):
+        if citation.claimed_year and canonical.year and citation.claimed_year != canonical.year:
             return [
                 Finding(
                     citation,
@@ -178,8 +174,7 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
                 citation,
                 Tier.AUTHOR,
                 canonical,
-                f"DOI resolves to {first_raw} ({canonical.year}) — "
-                f"possibly wrong DOI{conf}",
+                f"DOI resolves to {first_raw} ({canonical.year}) — possibly wrong DOI{conf}",
             )
         ]
     return [

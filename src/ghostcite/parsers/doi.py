@@ -15,9 +15,5 @@ def parse_doi_list(text: str) -> list[Citation]:
         m = _DOI.search(line)
         if not m:
             continue
-        cites.append(
-            Citation(
-                raw=line.strip(), source_line=i, doi=m.group(1).rstrip(".").lower()
-            )
-        )
+        cites.append(Citation(raw=line.strip(), source_line=i, doi=m.group(1).rstrip(".").lower()))
     return cites

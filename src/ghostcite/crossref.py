@@ -49,15 +49,9 @@ def _year(message: dict) -> int | None:
     return None
 
 
-def _record_from_message(
-    message: dict, low_confidence: bool = False
-) -> CanonicalRecord:
+def _record_from_message(message: dict, low_confidence: bool = False) -> CanonicalRecord:
     retracted, eoc = _retraction_flags(message)
-    authors = [
-        a.get("family", "").strip()
-        for a in message.get("author") or []
-        if a.get("family")
-    ]
+    authors = [a.get("family", "").strip() for a in message.get("author") or [] if a.get("family")]
     title = (message.get("title") or [None])[0]
     journal = (message.get("container-title") or [None])[0]
     return CanonicalRecord(
@@ -80,7 +74,7 @@ class CrossRefClient:
             follow_redirects=True,
         )
 
-    def __enter__(self) -> "CrossRefClient":
+    def __enter__(self) -> CrossRefClient:
         return self
 
     def __exit__(self, *exc) -> None:
@@ -109,9 +103,7 @@ class CrossRefClient:
         query = " ".join(str(x) for x in (author, year, title) if x).strip()
         if not query:
             return None
-        r = self._get(
-            f"{_BASE}/works", params={"query.bibliographic": query, "rows": 1}
-        )
+        r = self._get(f"{_BASE}/works", params={"query.bibliographic": query, "rows": 1})
         r.raise_for_status()
         items = r.json().get("message", {}).get("items") or []
         if not items:

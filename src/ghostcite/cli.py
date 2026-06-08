@@ -24,13 +24,9 @@ def _parse_args(argv):
     )
     p.add_argument("--version", action="version", version=f"ghostcite {__version__}")
     p.add_argument("file", help="bibliography file (.bib, markdown refs, or DOI list)")
-    p.add_argument(
-        "--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto"
-    )
+    p.add_argument("--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto")
     p.add_argument("--json", action="store_true", help="machine-readable output")
-    p.add_argument(
-        "--dry-run", action="store_true", help="parse + count only, no network"
-    )
+    p.add_argument("--dry-run", action="store_true", help="parse + count only, no network")
     p.add_argument(
         "--fail-on",
         default="author,year,retraction",
@@ -94,8 +90,6 @@ def main(argv=None) -> int:
     if args.fail_on.strip().lower() == "none":
         return 0
     fail_tiers = {
-        _TIER_BY_NAME[n.strip()]
-        for n in args.fail_on.split(",")
-        if n.strip() in _TIER_BY_NAME
+        _TIER_BY_NAME[n.strip()] for n in args.fail_on.split(",") if n.strip() in _TIER_BY_NAME
     }
     return 1 if any(f.tier in fail_tiers for f in findings) else 0

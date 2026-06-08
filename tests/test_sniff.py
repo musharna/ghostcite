@@ -1,4 +1,4 @@
-from ghostcite.parsers import sniff, parse
+from ghostcite.parsers import parse, sniff
 
 BIB = "@article{k,\n author={Li, X},\n year={2024},\n doi={10.1234/a}\n}"
 MD = "- **Chen M (2024).** Title. https://doi.org/10.1234/a"
