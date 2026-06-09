@@ -1,0 +1,32 @@
+name: Live tests
+
+# CI (ci.yml) runs only `-m "not live"`, so the real CrossRef/PubMed probes in
+# tests/test_probe_live.py never run there and upstream schema drift could break
+# the tool silently. This workflow runs those `@pytest.mark.live` checks weekly
+# (and on demand) against the live APIs.
+#
+# The probe step is `continue-on-error: true` so transient API flakiness does not
+# page — a failure shows up as a red step in the run, not a hard workflow failure.
+
+on:
+  schedule:
+    - cron: "0 12 * * 1" # Mondays 12:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+
+      - name: Live CrossRef/PubMed probes
+        continue-on-error: true
+        run: uv run --extra dev pytest -m live
