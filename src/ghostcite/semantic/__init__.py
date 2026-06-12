@@ -13,6 +13,7 @@ from ghostcite.semantic.backends import (
     SemanticBackendError,
     build_backend,
 )
+from ghostcite.semantic.support import AbstractProvider, check_claim_support
 
 __all__ = [
     "SemanticBackend",
@@ -20,4 +21,6 @@ __all__ = [
     "OpenAICompatibleBackend",
     "AnthropicBackend",
     "build_backend",
+    "AbstractProvider",
+    "check_claim_support",
 ]
