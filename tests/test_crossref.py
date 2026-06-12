@@ -119,3 +119,76 @@ def test_search_returns_none_on_empty(httpx_mock):
     )
     with CrossRefClient() as c:
         assert c.search_bibliographic("Nobody", 1999, "no such paper") is None
+
+
+# ---------------------------------------------------------------------------
+# Cache read-through tests
+# ---------------------------------------------------------------------------
+
+
+def test_cache_hit_skips_network(httpx_mock, tmp_path):
+    """Second call with same cache must not make a network request."""
+    from ghostcite.cache import MISS, DoiCache
+
+    url = "https://api.crossref.org/works/10.3390/plants13060869"
+    httpx_mock.add_response(url=url, json=WORK)
+
+    cache = DoiCache(cache_dir=tmp_path / "doi")
+    doi = "10.3390/plants13060869"
+
+    with CrossRefClient() as c:
+        # First call: cache miss -> network -> store
+        rec1 = c.lookup_by_doi(doi, cache=cache)
+        assert rec1 is not None
+        assert rec1.authors[0] == "Chen"
+        assert cache.get(doi) is not MISS  # stored
+
+        # Second call: cache hit -> no network request (httpx_mock has only 1 response)
+        rec2 = c.lookup_by_doi(doi, cache=cache)
+        assert rec2 is not None
+        assert rec2.authors[0] == "Chen"
+
+
+def test_cache_stores_404_none(httpx_mock, tmp_path):
+    """A 404 response is stored as None in the cache (known-absent sentinel)."""
+    from ghostcite.cache import DoiCache
+
+    url = "https://api.crossref.org/works/10.0/missing"
+    httpx_mock.add_response(url=url, status_code=404)
+
+    cache = DoiCache(cache_dir=tmp_path / "doi")
+    doi = "10.0/missing"
+
+    with CrossRefClient() as c:
+        rec = c.lookup_by_doi(doi, cache=cache)
+    assert rec is None
+    # Second access: cache returns None without network
+    result = cache.get(doi)
+    assert result is None  # cached 404, not MISS
+
+
+def test_no_cache_arg_unchanged(httpx_mock):
+    """When cache=None, behaviour is identical to before (no cache logic)."""
+    url = "https://api.crossref.org/works/10.3390/plants13060869"
+    httpx_mock.add_response(url=url, json=WORK)
+    with CrossRefClient() as c:
+        rec = c.lookup_by_doi("10.3390/plants13060869")  # no cache kwarg
+    assert rec is not None
+    assert rec.year == 2024
+
+
+def test_cached_hit_returned_without_network(httpx_mock, tmp_path):
+    """Pre-seeded cache entry is returned without touching the network at all."""
+    from ghostcite.cache import DoiCache
+    from ghostcite.models import CanonicalRecord
+
+    cache = DoiCache(cache_dir=tmp_path / "doi")
+    doi = "10.1234/preseed"
+    seeded = CanonicalRecord(doi=doi, authors=["Preseed"], year=2021)
+    cache.put(doi, seeded)
+
+    # No httpx mock response registered -- any network call would raise
+    with CrossRefClient() as c:
+        rec = c.lookup_by_doi(doi, cache=cache)
+    assert rec is not None
+    assert rec.authors[0] == "Preseed"

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
 import httpx
 
 from ghostcite import __version__
 from ghostcite._pace import _Pacer
 from ghostcite.models import CanonicalRecord
+
+if TYPE_CHECKING:
+    from ghostcite.cache import DoiCache
 
 _BASE = "https://api.crossref.org"
 _UA = f"ghostcite/{__version__} (https://github.com/musharna/ghostcite)"
@@ -18,9 +22,9 @@ def _retraction_flags(message: dict) -> tuple[bool, bool]:
     CrossRef exposes retraction/EoC three ways, and the live schema (verified
     against the Wakefield 1998 Lancet DOI, 2026-06-08) uses ``updated-by``:
       - ``updated-by``: items ON THE RETRACTED WORK pointing forward to the
-        notice; each has ``type`` ∈ {retraction, expression_of_concern, ...}.
+        notice; each has ``type`` in {retraction, expression_of_concern, ...}.
         This is the canonical "this paper was retracted" signal.
-      - ``update-to``: the inverse — items on the NOTICE pointing back to what
+      - ``update-to``: the inverse -- items on the NOTICE pointing back to what
         it updates (kept for completeness; often null on the retracted work).
       - ``relation``: keys like ``is-retracted-by`` (rarely populated).
     """
@@ -96,12 +100,40 @@ class CrossRefClient:
             self._pacer.update_from_headers(r.headers)
         return r
 
-    def lookup_by_doi(self, doi: str) -> CanonicalRecord | None:
+    def lookup_by_doi(
+        self, doi: str, *, cache: DoiCache | None = None
+    ) -> CanonicalRecord | None:
+        """Look up a DOI against CrossRef, with optional read-through caching.
+
+        Parameters
+        ----------
+        doi:
+            The DOI to look up.
+        cache:
+            Optional :class:`~ghostcite.cache.DoiCache`. When provided:
+            - Cache hit (record or known-404 ``None``) returned immediately,
+              no network call.
+            - Cache miss (``MISS``) -> network fetch -> result stored in cache.
+            When ``None`` (default), behaviour is identical to the pre-cache API.
+        """
+        if cache is not None:
+            from ghostcite.cache import MISS
+
+            cached = cache.get(doi)
+            if cached is not MISS:
+                # cached may be None (known 404) or a CanonicalRecord
+                return cached  # type: ignore[return-value]
+
         r = self._get(f"{_BASE}/works/{doi}")
         if r.status_code == 404:
+            if cache is not None:
+                cache.put(doi, None)
             return None
         r.raise_for_status()
-        return _record_from_message(r.json()["message"])
+        record = _record_from_message(r.json()["message"])
+        if cache is not None:
+            cache.put(doi, record)
+        return record
 
     def search_bibliographic(
         self, author: str | None, year: int | None, title: str | None
