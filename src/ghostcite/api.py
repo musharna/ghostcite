@@ -1,9 +1,9 @@
-"""Public API for ghostcite — importable library surface.
+"""Public API for ghostcite -- importable library surface.
 
 Exposes:
-  check_doi   — verify a single DOI against CrossRef + optional retraction DB
-  check_text  — verify all citations in a text blob (bibtex/markdown/doi list)
-  CheckResult — collapsed result for a single DOI lookup
+  check_doi   -- verify a single DOI against CrossRef + optional retraction DB
+  check_text  -- verify all citations in a text blob (bibtex/markdown/doi list)
+  CheckResult -- collapsed result for a single DOI lookup
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class CheckResult:
     tier:
         Highest-severity :class:`~ghostcite.models.Tier` among all findings.
     is_ghost:
-        True iff ``tier`` is AUTHOR, YEAR, or RETRACTION — i.e. the citation
+        True iff ``tier`` is AUTHOR, YEAR, or RETRACTION -- i.e. the citation
         is likely a ghost cite.
     message:
         Human-readable summary of the worst finding.
@@ -81,12 +81,18 @@ def _process_citation(
     client: CrossRefClient,
     retraction_db: RetractionDB | None = None,
     cache: DoiCache | None = None,
-) -> list[Finding]:
-    """Resolve one citation and return evaluated findings.
+) -> tuple[list[Finding], CanonicalRecord | None]:
+    """Resolve one citation and return (findings, canonical_record).
 
     Handles both the DOI path and the bibliographic-search fallback, plus
-    retraction DB override synthesis — exactly the logic from cli.py's inner
+    retraction DB override synthesis -- exactly the logic from cli.py inner
     loop, factored out so both check_text and cli.main share one implementation.
+
+    Returns
+    -------
+    tuple[list[Finding], CanonicalRecord | None]
+        The evaluated findings and the CrossRef canonical record (which callers
+        such as cli.py may need for PubMed cross-check).
     """
     if citation.doi:
         rec = client.lookup_by_doi(citation.doi, cache=cache)
@@ -105,7 +111,7 @@ def _process_citation(
     else:
         findings = evaluate(citation, rec)
 
-    return findings
+    return findings, rec
 
 
 # ---------------------------------------------------------------------------
@@ -157,13 +163,13 @@ def check_doi(
     )
 
     if client is not None:
-        findings = _process_citation(
+        findings, _rec = _process_citation(
             citation, client=client, retraction_db=retraction_db, cache=cache
         )
         return _collapse(doi, findings)
 
     with CrossRefClient() as owned_client:
-        findings = _process_citation(
+        findings, _rec = _process_citation(
             citation, client=owned_client, retraction_db=retraction_db, cache=cache
         )
     return _collapse(doi, findings)
@@ -209,7 +215,10 @@ def check_text(
     def _run(c: CrossRefClient) -> list[Finding]:
         out: list[Finding] = []
         for cit in citations:
-            out.extend(_process_citation(cit, client=c, retraction_db=retraction_db, cache=cache))
+            findings, _rec = _process_citation(
+                cit, client=c, retraction_db=retraction_db, cache=cache
+            )
+            out.extend(findings)
         return out
 
     if client is not None:

@@ -6,7 +6,8 @@ import sys
 from contextlib import ExitStack
 
 from ghostcite import __version__
-from ghostcite.compare import cross_check_pubmed, evaluate
+from ghostcite.api import _process_citation
+from ghostcite.compare import cross_check_pubmed
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
 from ghostcite.parsers import parse
@@ -189,19 +190,7 @@ def main(argv=None) -> int:
                     )
                 )
             for c in citations:
-                if c.doi:
-                    rec = client.lookup_by_doi(c.doi)
-                else:
-                    rec = client.search_bibliographic(
-                        c.claimed_first_author, c.claimed_year, c.claimed_title
-                    )
-                if rdb is not None:
-                    override = rdb.lookup(c.doi or (rec.doi if rec else "") or "")
-                    cite_findings = evaluate(
-                        c, rec, retraction_source=retraction_source, retraction_override=override
-                    )
-                else:
-                    cite_findings = evaluate(c, rec, retraction_source=retraction_source)
+                cite_findings, rec = _process_citation(c, client=client, retraction_db=rdb)
                 if pmclient is not None:
                     if c.doi:
                         pm = pmclient.lookup_by_doi(c.doi)

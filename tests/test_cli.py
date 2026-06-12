@@ -29,7 +29,7 @@ class FakeClient:
     def __exit__(self, *a):
         return None
 
-    def lookup_by_doi(self, doi):
+    def lookup_by_doi(self, doi, *, cache=None):
         return self.table.get(doi)
 
     def search_bibliographic(self, *a):
@@ -224,7 +224,7 @@ def test_retraction_db_flags_even_when_crossref_404s(tmp_path, capsys, monkeypat
     """DB retraction must fire even when CrossRef returns None (404/unreachable)."""
 
     class NotFoundFake(FakeClient):
-        def lookup_by_doi(self, doi):
+        def lookup_by_doi(self, doi, *, cache=None):
             return None
 
     monkeypatch.setattr(cli, "CrossRefClient", NotFoundFake)

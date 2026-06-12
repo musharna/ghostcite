@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from ghostcite.api import CheckResult, check_doi, check_text
-
 from ghostcite.models import CanonicalRecord, Finding, Tier
 
 # ---------------------------------------------------------------------------

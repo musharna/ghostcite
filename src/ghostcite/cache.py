@@ -175,8 +175,8 @@ class DoiCache:
             os.replace(tmp_name, path)
         except Exception:
             # Best-effort cleanup; don't leave .tmp around
-            try:
+            import contextlib
+
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_name)
-            except OSError:
-                pass
             raise
