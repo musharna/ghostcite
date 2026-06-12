@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 _TIER_PRIORITY: dict[Tier, int] = {
-    Tier.AUTHOR: 6,
+    Tier.AUTHOR: 7,
+    Tier.TITLE: 6,
     Tier.RETRACTION: 5,
     Tier.YEAR: 4,
     Tier.COSMETIC: 3,
@@ -34,7 +35,7 @@ _TIER_PRIORITY: dict[Tier, int] = {
     Tier.OK: 1,
 }
 
-_GHOST_TIERS = {Tier.AUTHOR, Tier.YEAR, Tier.RETRACTION}
+_GHOST_TIERS = {Tier.AUTHOR, Tier.TITLE, Tier.YEAR, Tier.RETRACTION}
 
 
 # ---------------------------------------------------------------------------

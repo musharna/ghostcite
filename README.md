@@ -70,7 +70,7 @@ $ echo $?
   │ │   │     │                    └─ what CrossRef actually records
   │ │   │     └─ what you cited (claimed first author + year)
   │ │   └─ source line in your bibliography
-  │ └─ tier: A author · B year · C cosmetic · R retraction · U unresolvable
+  │ └─ tier: A author · T title · B year · C cosmetic · R retraction · U unresolvable
   └─ glyph: ✗ fails CI · ⚠ retraction · · informational
 ```
 
@@ -127,18 +127,22 @@ with the project URL, never a personal email).
 <details>
 <summary><b>Severity tiers, input formats &amp; exit codes</b></summary>
 
-| Tier   | Meaning                                                               | Fails CI?                       |
-| ------ | --------------------------------------------------------------------- | ------------------------------- |
-| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors    | Yes                             |
-| **B**  | year-mismatch — author matches, claimed year differs                  | Yes                             |
-| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger) | No (info)                       |
-| **R**  | retraction / expression-of-concern per CrossRef                       | Yes (fires regardless of A/B/C) |
-| **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive      | No (warn)                       |
-| **OK** | first author + year match                                             | —                               |
+| Tier   | Meaning                                                                | Fails CI?                       |
+| ------ | ---------------------------------------------------------------------- | ------------------------------- |
+| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors     | Yes                             |
+| **T**  | title-mismatch — DOI resolves to a different paper (identifier hijack) | Yes                             |
+| **B**  | year-mismatch — author matches, claimed year differs                   | Yes                             |
+| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger)  | No (info)                       |
+| **R**  | retraction / expression-of-concern per CrossRef                        | Yes (fires regardless of A/B/C) |
+| **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive       | No (warn)                       |
+| **OK** | first author + year match                                              | —                               |
 
-When the claimed title also diverges strongly from CrossRef's title, a Tier A
-finding is annotated **"possibly wrong DOI entirely"** to distinguish a wrong-author
-citation from a wrong-DOI one.
+Tier **T** catches "identifier hijacking": the DOI resolves, but to a _different
+paper_ than the one cited — even when the claimed author coincidentally matches the
+real first author. It compares the claimed title against CrossRef's canonical title
+with a conservative token overlap, so subtitle/formatting variance on a correct
+citation does not trip it. (When the author _also_ mismatches, the wrong-DOI signal
+is folded into the Tier A finding instead, to avoid double-reporting.)
 
 | Format       | Detection                                       | Yields claimed author/year?            |
 | ------------ | ----------------------------------------------- | -------------------------------------- |
@@ -152,7 +156,7 @@ citation from a wrong-DOI one.
 | `1`       | findings present at/above the threshold            |
 | `2`       | tool error (network down, unparseable input, …)    |
 
-`--fail-on` (default `author,year,retraction`) selects which tiers force exit `1`;
+`--fail-on` (default `author,title,year,retraction`) selects which tiers force exit `1`;
 `--fail-on none` runs as a passive reporter. Tiers `C` and `U` never force exit `1`.
 
 </details>

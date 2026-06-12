@@ -10,6 +10,7 @@ class Tier(str, Enum):
     YEAR = "B"  # author matches, year differs
     COSMETIC = "C"  # matches only after diacritic/initials fold
     RETRACTION = "R"  # retracted or expression-of-concern
+    TITLE = "T"  # DOI resolves to a different paper (identifier hijacking)
     UNRESOLVABLE = "U"  # DOI not found / no-DOI entry unresolved
     SUPPORT = "S"  # (semantic, non-deterministic) cited source does not support the claim
 

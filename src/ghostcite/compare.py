@@ -96,6 +96,32 @@ def title_similar(a: str | None, b: str | None, threshold: float = 0.4) -> bool:
     return (inter / union) >= threshold
 
 
+def title_mismatch(
+    claimed: str | None,
+    canonical: str | None,
+    *,
+    threshold: float = 0.3,
+    min_tokens: int = 3,
+) -> bool:
+    """True when the cited title clearly disagrees with the canonical title.
+
+    Conservative / high-precision (this gates CI): flags ONLY when BOTH titles
+    carry at least ``min_tokens`` content tokens (so tiny/truncated titles are
+    never judged) AND their Jaccard token overlap is below ``threshold`` (0.3,
+    stricter than ``title_similar``'s 0.4, so subtitle/formatting variance on a
+    correct citation does not trip it). Catches "identifier hijacking" — a DOI
+    that resolves to a different paper than the one cited.
+    """
+    if not claimed or not canonical:
+        return False
+    tc, tk = _title_tokens(claimed), _title_tokens(canonical)
+    if len(tc) < min_tokens or len(tk) < min_tokens:
+        return False
+    inter = len(tc & tk)
+    union = len(tc | tk)
+    return (inter / union) < threshold
+
+
 def evaluate(
     citation: Citation,
     canonical: CanonicalRecord | None,
@@ -139,6 +165,23 @@ def evaluate(
     # Author/year only when the input actually claimed an author (not DOI-list mode).
     if citation.claimed_first_author:
         findings.extend(_author_year(citation, canonical))
+
+    # Title mismatch (identifier hijacking): the DOI resolves to a different paper.
+    # Fires independent of the author result, but suppressed when an AUTHOR finding
+    # already carries the wrong-paper signal (avoids double-reporting). This fills the
+    # gap where the claimed author coincidentally matches — or is absent — yet the
+    # title clearly disagrees.
+    if not any(f.tier is Tier.AUTHOR for f in findings) and title_mismatch(
+        citation.claimed_title, canonical.title
+    ):
+        findings.append(
+            Finding(
+                citation,
+                Tier.TITLE,
+                canonical,
+                f'DOI resolves to a different title: CrossRef has "{canonical.title}"',
+            )
+        )
 
     return findings
 

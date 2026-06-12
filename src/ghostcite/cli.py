@@ -22,6 +22,7 @@ from ghostcite.retractions import (
 
 _TIER_BY_NAME = {
     "author": Tier.AUTHOR,
+    "title": Tier.TITLE,
     "year": Tier.YEAR,
     "retraction": Tier.RETRACTION,
     "support": Tier.SUPPORT,
@@ -45,9 +46,9 @@ def _parse_args(argv):
     p.add_argument("--dry-run", action="store_true", help="parse + count only, no network")
     p.add_argument(
         "--fail-on",
-        default="author,year,retraction",
+        default="author,title,year,retraction",
         help="comma list of tiers that cause exit 1, or 'none' "
-        "(choices: author,year,retraction,none)",
+        "(choices: author,title,year,retraction,support,none)",
     )
     p.add_argument(
         "--max-rps",

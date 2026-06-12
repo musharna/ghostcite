@@ -6,6 +6,7 @@ from ghostcite.models import Finding, Tier
 
 _GLYPH = {
     Tier.AUTHOR: "✗ A",
+    Tier.TITLE: "✗ T",
     Tier.YEAR: "✗ B",
     Tier.COSMETIC: "· C",
     Tier.RETRACTION: "⚠ R",
@@ -15,6 +16,7 @@ _GLYPH = {
 
 _ANSI = {
     Tier.AUTHOR: "\033[31m",
+    Tier.TITLE: "\033[31m",
     Tier.YEAR: "\033[31m",
     Tier.RETRACTION: "\033[35m",
     Tier.COSMETIC: "\033[2m",

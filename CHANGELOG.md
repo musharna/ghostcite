@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Title-mismatch tier (`T`): catches "identifier hijacking" — a DOI that resolves
+  to a different paper than the one cited — by comparing the claimed title against
+  CrossRef's canonical title (conservative token-overlap; tolerates subtitle and
+  formatting variance). Fires even when the claimed author coincidentally matches.
+  Deterministic; included in the default `--fail-on` (`author,title,year,retraction`).
 - Opt-in semantic claim-support layer (`--semantic` / `--claims <file.json>`):
   checks whether a cited paper's abstract supports a claim via a bring-your-own
   LLM backend (OpenAI-compatible or Anthropic), abstract-grounded. Findings are
