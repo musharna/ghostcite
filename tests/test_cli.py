@@ -190,3 +190,27 @@ def test_retraction_db_missing_path_exit_2(tmp_path, capsys, monkeypatch):
     code = cli.main([f, "--retraction-db", str(tmp_path / "nope.csv")])
     assert code == 2
     assert "retraction" in capsys.readouterr().err.lower()
+
+
+def test_fetch_retractions_requires_mailto(capsys, monkeypatch):
+    monkeypatch.delenv("GHOSTCITE_MAILTO", raising=False)
+    code = cli.main(["fetch-retractions"])
+    assert code == 2
+    assert "mailto" in capsys.readouterr().err.lower()
+
+
+def test_fetch_retractions_success(tmp_path, capsys, monkeypatch):
+    dest = tmp_path / "rw.csv"
+    calls = {}
+
+    def fake_fetch(mailto, d, **kw):
+        calls["mailto"] = mailto
+        return {"row_count": 5, "fetched_at": "2026-06-11T00:00:00+00:00"}
+
+    monkeypatch.setattr(cli, "fetch_retractions", fake_fetch)
+    code = cli.main(["fetch-retractions", "--mailto", "me@x.org", "--dest", str(dest)])
+    assert code == 0
+    assert calls["mailto"] == "me@x.org"
+    out = capsys.readouterr().out
+    assert "Retraction Watch" in out  # attribution printed
+    assert "5" in out
