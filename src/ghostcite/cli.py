@@ -11,6 +11,7 @@ from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
 from ghostcite.parsers import parse
 from ghostcite.pubmed import PubMedClient
+from ghostcite.retractions import RetractionDBError, default_cache_path, fetch_retractions, resolve_db
 from ghostcite.report import render_json, render_text
 
 _TIER_BY_NAME = {
@@ -67,6 +68,12 @@ def _parse_args(argv):
         default=os.environ.get("NCBI_API_KEY"),
         help="NCBI API key for higher rate limits (or set NCBI_API_KEY)",
     )
+    p.add_argument(
+        "--retraction-db",
+        default=None,
+        help="path to a Retraction Watch CSV snapshot (authoritative retraction "
+        "source; 'none' forces live CrossRef even if a cache exists)",
+    )
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
         p.error("--max-rps must be > 0")
@@ -88,8 +95,45 @@ def _want_color(mode: str) -> bool:
     return sys.stdout.isatty() and os.environ.get("TERM") != "dumb"
 
 
+def _fetch_retractions_main(argv) -> int:
+    p = argparse.ArgumentParser(
+        prog="ghostcite fetch-retractions",
+        description="Download the Retraction Watch snapshot for offline use.",
+    )
+    p.add_argument(
+        "--mailto",
+        default=os.environ.get("GHOSTCITE_MAILTO"),
+        help="contact email (required by Crossref Labs; or set GHOSTCITE_MAILTO)",
+    )
+    p.add_argument(
+        "--dest",
+        default=None,
+        help="output CSV path (default: the XDG cache location)",
+    )
+    a = p.parse_args(argv)
+    dest = a.dest or default_cache_path()
+    try:
+        meta = fetch_retractions(a.mailto or "", dest)
+    except RetractionDBError as e:
+        print(f"ghostcite: {e}", file=sys.stderr)
+        return 2
+    except Exception as e:  # network/HTTP - fail loud
+        print(f"ghostcite: fetch-retractions failed: {e}", file=sys.stderr)
+        return 2
+    print(
+        f"ghostcite: wrote {meta['row_count']} retraction records to {dest}\n"
+        "Retraction data: Crossref + Retraction Watch (The Center for Scientific "
+        "Integrity), retrieved via Crossref Labs."
+    )
+    return 0
+
+
 def main(argv=None) -> int:
-    args = _parse_args(argv if argv is not None else sys.argv[1:])
+    argv = list(argv if argv is not None else sys.argv[1:])
+    if argv and argv[0] == "fetch-retractions":
+        return _fetch_retractions_main(argv[1:])
+    args = _parse_args(argv)
+
     if args.file == "-":
         text = sys.stdin.read()
         if not text.strip():
@@ -118,6 +162,13 @@ def main(argv=None) -> int:
         )
         return 0
 
+    try:
+        rdb = resolve_db(args.retraction_db)
+    except RetractionDBError as e:
+        print(f"ghostcite: {e}", file=sys.stderr)
+        return 2
+    retraction_source = rdb.source_label if rdb else "CrossRef live"
+
     findings: list[Finding] = []
     use_pubmed = args.cross_check == "pubmed"
     try:
@@ -139,7 +190,9 @@ def main(argv=None) -> int:
                     rec = client.search_bibliographic(
                         c.claimed_first_author, c.claimed_year, c.claimed_title
                     )
-                cite_findings = evaluate(c, rec)
+                if rdb is not None and rec is not None:
+                    rec.retracted, rec.eoc = rdb.lookup(rec.doi or c.doi or "")
+                cite_findings = evaluate(c, rec, retraction_source=retraction_source)
                 if pmclient is not None:
                     if c.doi:
                         pm = pmclient.lookup_by_doi(c.doi)
@@ -152,17 +205,17 @@ def main(argv=None) -> int:
     except Exception as e:  # fail-loud: surface, keep partial findings
         print(f"ghostcite: cross-check error: {e}", file=sys.stderr)
         out = (
-            render_json(findings, len(citations), with_doi)
+            render_json(findings, len(citations), with_doi, retraction_source=retraction_source)
             if args.json
-            else render_text(findings, len(citations), with_doi, color=color)
+            else render_text(findings, len(citations), with_doi, color=color, retraction_source=retraction_source)
         )
         print(out)
         return 2
 
     out = (
-        render_json(findings, len(citations), with_doi)
+        render_json(findings, len(citations), with_doi, retraction_source=retraction_source)
         if args.json
-        else render_text(findings, len(citations), with_doi, color=color)
+        else render_text(findings, len(citations), with_doi, color=color, retraction_source=retraction_source)
     )
     print(out)
 

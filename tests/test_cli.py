@@ -146,3 +146,47 @@ def test_python_m_entrypoint():
     )
     assert result.returncode == 0
     assert "ghostcite 0.1.0" in result.stdout
+
+
+def _retracted_fake(monkeypatch):
+    class RetractFake(FakeClient):
+        table = {
+            "10.1/ret": CanonicalRecord(
+                doi="10.1/ret", authors=["Doe"], year=2000, title="t",
+                retracted=False,  # CrossRef itself does NOT flag it...
+            ),
+        }
+    monkeypatch.setattr(cli, "CrossRefClient", RetractFake)
+
+
+def _db_csv(tmp_path):
+    p = tmp_path / "rw.csv"
+    p.write_text("OriginalPaperDOI,RetractionNature\n10.1/ret,Retraction\n", "utf-8")
+    return str(p)
+
+
+def test_retraction_db_flags_when_crossref_did_not(tmp_path, capsys, monkeypatch):
+    _retracted_fake(monkeypatch)
+    db = _db_csv(tmp_path)
+    f = _write(tmp_path, "@article{k, author={Doe, J}, year={2000}, title={t}, doi={10.1/ret}}")
+    code = cli.main([f, "--retraction-db", db])
+    out = capsys.readouterr().out
+    assert code == 1  # retraction is in default --fail-on
+    assert "Retraction Watch snapshot" in out  # source label in finding + header
+
+
+def test_retraction_db_none_disables(tmp_path, capsys, monkeypatch):
+    _retracted_fake(monkeypatch)
+    f = _write(tmp_path, "@article{k, author={Doe, J}, year={2000}, title={t}, doi={10.1/ret}}")
+    code = cli.main([f, "--retraction-db", "none"])
+    out = capsys.readouterr().out
+    assert "retractions: CrossRef live" in out
+    assert code == 0  # CrossRef fake did not flag it, db disabled
+
+
+def test_retraction_db_missing_path_exit_2(tmp_path, capsys, monkeypatch):
+    _retracted_fake(monkeypatch)
+    f = _write(tmp_path, "@article{k, author={Doe, J}, year={2000}, title={t}, doi={10.1/ret}}")
+    code = cli.main([f, "--retraction-db", str(tmp_path / "nope.csv")])
+    assert code == 2
+    assert "retraction" in capsys.readouterr().err.lower()
