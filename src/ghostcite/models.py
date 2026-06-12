@@ -11,6 +11,7 @@ class Tier(str, Enum):
     COSMETIC = "C"  # matches only after diacritic/initials fold
     RETRACTION = "R"  # retracted or expression-of-concern
     UNRESOLVABLE = "U"  # DOI not found / no-DOI entry unresolved
+    SUPPORT = "S"  # (semantic, non-deterministic) cited source does not support the claim
 
 
 @dataclass
@@ -33,6 +34,7 @@ class CanonicalRecord:
     retracted: bool = False
     eoc: bool = False  # expression of concern
     low_confidence: bool = False  # from bibliographic search
+    abstract: str | None = None  # plain-text abstract, when a source provides one
 
 
 @dataclass
@@ -52,3 +54,17 @@ class Finding:
     canonical: CanonicalRecord | None
     message: str
     cross_check: str | None = None
+    deterministic: bool = True  # semantic findings set this False
+
+
+class SemanticVerdict(str, Enum):
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    UNCERTAIN = "uncertain"
+
+
+@dataclass
+class SupportResult:
+    verdict: SemanticVerdict
+    rationale: str
+    backend: str
