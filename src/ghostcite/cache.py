@@ -142,6 +142,7 @@ class DoiCache:
                 retracted=bool(raw.get("retracted", False)),
                 eoc=bool(raw.get("eoc", False)),
                 low_confidence=bool(raw.get("low_confidence", False)),
+                abstract=raw.get("abstract"),
             )
         except (TypeError, AttributeError):
             return MISS
