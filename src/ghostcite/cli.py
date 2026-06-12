@@ -24,6 +24,7 @@ _TIER_BY_NAME = {
     "author": Tier.AUTHOR,
     "year": Tier.YEAR,
     "retraction": Tier.RETRACTION,
+    "support": Tier.SUPPORT,
 }
 
 
@@ -35,6 +36,8 @@ def _parse_args(argv):
     p.add_argument("--version", action="version", version=f"ghostcite {__version__}")
     p.add_argument(
         "file",
+        nargs="?",
+        default=None,
         help="bibliography file (.bib, markdown refs, or DOI list), or '-' for stdin",
     )
     p.add_argument("--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto")
@@ -79,6 +82,20 @@ def _parse_args(argv):
         default=None,
         help="path to a Retraction Watch CSV snapshot (authoritative retraction "
         "source; 'none' forces live CrossRef even if a cache exists)",
+    )
+    p.add_argument(
+        "--semantic",
+        action="store_true",
+        help="enable the opt-in semantic claim-support layer (needs a backend)",
+    )
+    p.add_argument("--semantic-backend", choices=["openai", "anthropic"], default="openai")
+    p.add_argument("--semantic-model", default=os.environ.get("GHOSTCITE_SEMANTIC_MODEL", ""))
+    p.add_argument("--semantic-base-url", default=os.environ.get("GHOSTCITE_SEMANTIC_BASE_URL"))
+    p.add_argument("--semantic-api-key", default=os.environ.get("GHOSTCITE_SEMANTIC_API_KEY"))
+    p.add_argument(
+        "--claims",
+        default=None,
+        help="path to a JSON list of {claim, doi} to claim-support check (semantic)",
     )
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
@@ -134,11 +151,88 @@ def _fetch_retractions_main(argv) -> int:
     return 0
 
 
+def _exit_code(fail_on: str, findings: list[Finding]) -> int:
+    if fail_on.strip().lower() == "none":
+        return 0
+    fail_tiers = {
+        _TIER_BY_NAME[n.strip()] for n in fail_on.split(",") if n.strip() in _TIER_BY_NAME
+    }
+    return 1 if any(f.tier in fail_tiers for f in findings) else 0
+
+
+def _claims_main(args) -> int:
+    import json as _json
+
+    try:
+        with open(args.claims, encoding="utf-8") as _fh:
+            pairs = _json.loads(_fh.read())
+        assert isinstance(pairs, list)
+    except (OSError, ValueError, AssertionError) as e:
+        print(f"ghostcite: cannot read --claims file: {e}", file=sys.stderr)
+        return 2
+
+    from ghostcite.cache import DoiCache
+    from ghostcite.semantic import backends as _backends
+    from ghostcite.semantic import support as _support
+
+    try:
+        backend = _backends.build_backend(
+            args.semantic_backend,
+            base_url=args.semantic_base_url,
+            api_key=args.semantic_api_key,
+            model=args.semantic_model or "default",
+        )
+    except _backends.SemanticBackendError as e:
+        print(f"ghostcite: {e}", file=sys.stderr)
+        return 2
+
+    findings: list[Finding] = []
+    try:
+        with CrossRefClient(max_rps=args.max_rps) as client:
+            provider = _support.AbstractProvider(client=client, cache=DoiCache())
+            for item in pairs:
+                claim = item.get("claim")
+                doi = item.get("doi")
+                if not claim or not doi:
+                    continue
+                f = _support.check_claim_support(
+                    claim, doi, backend=backend, source_provider=provider
+                )
+                if f is not None:
+                    findings.append(f)
+    except _backends.SemanticBackendError as e:
+        print(f"ghostcite: semantic check failed: {e}", file=sys.stderr)
+        return 2
+
+    color = False if args.json else _want_color(args.color)
+    out = (
+        render_json(findings, len(pairs), len(pairs))
+        if args.json
+        else render_text(findings, len(pairs), len(pairs), color=color)
+    )
+    print(out)
+    return _exit_code(args.fail_on, findings)
+
+
 def main(argv=None) -> int:
     argv = list(argv if argv is not None else sys.argv[1:])
     if argv and argv[0] == "fetch-retractions":
         return _fetch_retractions_main(argv[1:])
     args = _parse_args(argv)
+
+    if args.claims:
+        return _claims_main(args)
+
+    if args.file is None:
+        print("ghostcite: a bibliography file (or '-') is required", file=sys.stderr)
+        return 2
+
+    if args.semantic:
+        print(
+            "ghostcite: --semantic on a bibliography has no claims to check; "
+            "pass --claims <file.json> with {claim, doi} pairs. Running core checks only.",
+            file=sys.stderr,
+        )
 
     if args.file == "-":
         text = sys.stdin.read()
@@ -205,7 +299,9 @@ def main(argv=None) -> int:
         out = (
             render_json(findings, len(citations), with_doi, retraction_source=retraction_source)
             if args.json
-            else render_text(findings, len(citations), with_doi, color=color, retraction_source=retraction_source)
+            else render_text(
+                findings, len(citations), with_doi, color=color, retraction_source=retraction_source
+            )
         )
         print(out)
         return 2
@@ -213,13 +309,10 @@ def main(argv=None) -> int:
     out = (
         render_json(findings, len(citations), with_doi, retraction_source=retraction_source)
         if args.json
-        else render_text(findings, len(citations), with_doi, color=color, retraction_source=retraction_source)
+        else render_text(
+            findings, len(citations), with_doi, color=color, retraction_source=retraction_source
+        )
     )
     print(out)
 
-    if args.fail_on.strip().lower() == "none":
-        return 0
-    fail_tiers = {
-        _TIER_BY_NAME[n.strip()] for n in args.fail_on.split(",") if n.strip() in _TIER_BY_NAME
-    }
-    return 1 if any(f.tier in fail_tiers for f in findings) else 0
+    return _exit_code(args.fail_on, findings)
