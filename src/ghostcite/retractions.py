@@ -2,13 +2,21 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import json
 import os
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
+import httpx
+
+from ghostcite import __version__
+
 _DOI_PREFIXES = ("https://doi.org/", "http://doi.org/", "http://dx.doi.org/", "doi:")
+_LABS_URL = "https://api.labs.crossref.org/data/retractionwatch"
+_UA = f"ghostcite/{__version__} (https://github.com/musharna/ghostcite)"
 
 
 class RetractionDBError(Exception):
@@ -47,7 +55,7 @@ class RetractionDB:
         return (d in self.retracted, d in self.eoc)
 
     @classmethod
-    def load(cls, path: str | Path) -> "RetractionDB":
+    def load(cls, path: str | Path) -> RetractionDB:
         p = Path(path)
         try:
             text = p.read_text(encoding="utf-8-sig", errors="replace")
@@ -90,8 +98,6 @@ def _snapshot_date(csv_path: Path) -> str:
     meta = csv_path.with_suffix(".meta.json")
     if meta.exists():
         try:
-            import json
-
             fetched = json.loads(meta.read_text(encoding="utf-8")).get("fetched_at")
             if fetched:
                 return str(fetched)[:10]
@@ -121,3 +127,39 @@ def resolve_db(retraction_db_arg: str | None) -> RetractionDB | None:
     if cache.exists():
         return RetractionDB.load(cache)
     return None
+
+
+def fetch_retractions(mailto: str, dest: str | Path, *, client: httpx.Client | None = None) -> dict:
+    """Download the Retraction Watch CSV to ``dest`` and write a sidecar
+    ``<dest>.meta.json``. ``mailto`` is required by Crossref Labs. Returns meta."""
+    if not mailto or not mailto.strip():
+        raise RetractionDBError(
+            "fetch-retractions requires a contact email: pass --mailto or set "
+            "GHOSTCITE_MAILTO (Crossref Labs requires a mailto query parameter)."
+        )
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    url = f"{_LABS_URL}?mailto={mailto.strip()}"
+    owns = client is None
+    client = client or httpx.Client(
+        timeout=180.0, headers={"User-Agent": _UA}, follow_redirects=True
+    )
+    try:
+        r = client.get(url)
+        r.raise_for_status()
+        data = r.content
+    finally:
+        if owns:
+            client.close()
+    dest.write_bytes(data)
+    row_count = max(0, data.count(b"\n") - 1)
+    meta = {
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "source_url": _LABS_URL,  # mailto deliberately omitted
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "row_count": row_count,
+    }
+    dest.with_suffix(".meta.json").write_text(
+        json.dumps(meta, indent=2), encoding="utf-8"
+    )
+    return meta

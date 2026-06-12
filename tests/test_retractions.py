@@ -1,11 +1,16 @@
 # tests/test_retractions.py
 from __future__ import annotations
 
+import json as _json
+
+import httpx
 import pytest
+
 from ghostcite.retractions import (
     RetractionDB,
     RetractionDBError,
     default_cache_path,
+    fetch_retractions,
     normalize_doi,
     resolve_db,
 )
@@ -15,6 +20,11 @@ _CSV = (
     "1,10.1016/S0140-6736(97)11096-0,10.1016/x,Retraction\n"
     "2,https://doi.org/10.1111/EOC-PAPER,10.1111/y,Expression of Concern\n"
     "3,10.9999/correction-only,10.9999/z,Correction\n"
+)
+
+_RW_BODY = (
+    "RecordID,OriginalPaperDOI,RetractionNature\n"
+    "1,10.1/a,Retraction\n2,10.1/b,Expression of Concern\n"
 )
 
 
@@ -107,3 +117,34 @@ def test_resolve_db_auto_cache(tmp_path, monkeypatch):
 def test_resolve_db_absent_cache_returns_none(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))  # nothing written
     assert resolve_db(None) is None
+
+
+def test_fetch_writes_csv_and_meta(tmp_path, httpx_mock):
+    httpx_mock.add_response(
+        url="https://api.labs.crossref.org/data/retractionwatch?mailto=me@x.org",
+        text=_RW_BODY,
+    )
+    dest = tmp_path / "retractions.csv"
+    meta = fetch_retractions("me@x.org", dest)
+    assert dest.read_text(encoding="utf-8") == _RW_BODY
+    assert meta["row_count"] == 2
+    side = dest.with_suffix(".meta.json")
+    on_disk = _json.loads(side.read_text(encoding="utf-8"))
+    assert on_disk["row_count"] == 2
+    assert "fetched_at" in on_disk and on_disk["sha256"]
+    # mailto must NOT be persisted in the recorded source_url
+    assert "mailto" not in on_disk["source_url"]
+
+
+def test_fetch_requires_mailto(tmp_path):
+    with pytest.raises(RetractionDBError):
+        fetch_retractions("", tmp_path / "x.csv")
+
+
+def test_fetch_http_error_raises(tmp_path, httpx_mock):
+    httpx_mock.add_response(
+        url="https://api.labs.crossref.org/data/retractionwatch?mailto=me@x.org",
+        status_code=503,
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        fetch_retractions("me@x.org", tmp_path / "x.csv")
