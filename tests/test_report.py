@@ -72,6 +72,8 @@ def test_text_no_source_line_when_unset():
 
 
 def test_json_includes_retraction_source():
-    out = render_json([], total=1, with_doi=1, retraction_source="Retraction Watch snapshot 2026-06-11")
+    out = render_json(
+        [], total=1, with_doi=1, retraction_source="Retraction Watch snapshot 2026-06-11"
+    )
     data = json.loads(out)
     assert data["summary"]["retraction_source"] == "Retraction Watch snapshot 2026-06-11"

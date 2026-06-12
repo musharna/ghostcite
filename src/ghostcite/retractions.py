@@ -31,7 +31,7 @@ def normalize_doi(doi: str | None) -> str:
     low = s.lower()
     for pref in _DOI_PREFIXES:
         if low.startswith(pref):
-            s = s[len(pref):]
+            s = s[len(pref) :]
             break
     return s.strip().lower()
 
@@ -63,9 +63,7 @@ class RetractionDB:
             raise RetractionDBError(f"cannot read retraction db {p}: {e}") from e
         reader = csv.DictReader(io.StringIO(text))
         if not reader.fieldnames or "OriginalPaperDOI" not in reader.fieldnames:
-            raise RetractionDBError(
-                f"{p}: missing required 'OriginalPaperDOI' column"
-            )
+            raise RetractionDBError(f"{p}: missing required 'OriginalPaperDOI' column")
         retracted: set[str] = set()
         eoc: set[str] = set()
         rows = 0
@@ -110,9 +108,7 @@ def _snapshot_date(csv_path: Path) -> str:
 
 
 def default_cache_path() -> Path:
-    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
-        os.path.expanduser("~"), ".cache"
-    )
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
     return Path(base) / "ghostcite" / "retractions.csv"
 
 
@@ -160,7 +156,5 @@ def fetch_retractions(mailto: str, dest: str | Path, *, client: httpx.Client | N
         "sha256": hashlib.sha256(data).hexdigest(),
         "row_count": row_count,
     }
-    dest.with_suffix(".meta.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
+    dest.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return meta

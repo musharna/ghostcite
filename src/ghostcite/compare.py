@@ -133,9 +133,7 @@ def evaluate(
     if canonical is None:
         # No CrossRef record: the byline is genuinely unverifiable. The retraction
         # (if any) is already reported above.
-        findings.append(
-            Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable")
-        )
+        findings.append(Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable"))
         return findings
 
     # Author/year only when the input actually claimed an author (not DOI-list mode).

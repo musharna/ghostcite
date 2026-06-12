@@ -210,6 +210,20 @@ Retraction data: Crossref + Retraction Watch (The Center for Scientific
 Integrity). ghostcite downloads it on demand and does not redistribute it; see
 [`NOTICE`](NOTICE).
 
+### Opt-in semantic claim-support (BYO backend)
+
+ghostcite's defaults are deterministic and need no GPU. If you also want
+"does the cited paper actually support this sentence?", bring your own LLM:
+
+    ghostcite --claims claims.json \
+      --semantic-backend openai \
+      --semantic-base-url http://localhost:11434/v1 \
+      --semantic-model llama3.1
+
+`claims.json` is a list of `{"claim": "...", "doi": "10.x/y"}`. Results are
+abstract-grounded and marked non-deterministic; they never fail CI unless you add
+`--fail-on support`.
+
 ## Scope &amp; limitations
 
 `ghostcite` checks **metadata correctness** (does the DOI's record match what you

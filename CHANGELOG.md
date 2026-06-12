@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-12
+
+### Added
+
+- Opt-in semantic claim-support layer (`--semantic` / `--claims <file.json>`):
+  checks whether a cited paper's abstract supports a claim via a bring-your-own
+  LLM backend (OpenAI-compatible or Anthropic), abstract-grounded. Findings are
+  marked non-deterministic (`tier=S`), segregated in output, and excluded from
+  `--fail-on` unless opted in (`--fail-on support`). With `--semantic` off,
+  behavior and dependencies are unchanged — the deterministic core never imports
+  the semantic subpackage.
+- `ghostcite.check_claim_support()` public API; `CanonicalRecord.abstract`
+  populated from CrossRef (JATS-stripped).
+
 ## [0.2.0] - 2026-06-11
 
 ### Added
