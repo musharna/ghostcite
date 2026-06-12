@@ -152,7 +152,8 @@ def fetch_retractions(mailto: str, dest: str | Path, *, client: httpx.Client | N
         if owns:
             client.close()
     dest.write_bytes(data)
-    row_count = max(0, data.count(b"\n") - 1)
+    line_breaks = data.count(b"\n")
+    row_count = max(0, line_breaks - (1 if data.endswith(b"\n") else 0))
     meta = {
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "source_url": _LABS_URL,  # mailto deliberately omitted

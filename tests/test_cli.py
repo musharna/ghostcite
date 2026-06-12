@@ -235,3 +235,4 @@ def test_retraction_db_flags_even_when_crossref_404s(tmp_path, capsys, monkeypat
     out = capsys.readouterr().out
     assert code == 1
     assert "RETRACTED per Retraction Watch" in out
+    assert "no author data" not in out

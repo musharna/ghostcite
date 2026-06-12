@@ -100,19 +100,27 @@ def evaluate(
     citation: Citation,
     canonical: CanonicalRecord | None,
     retraction_source: str = "CrossRef",
+    *,
+    retraction_override: tuple[bool, bool] | None = None,
 ) -> list[Finding]:
-    """Compare a claimed citation against the canonical record. Empty list = OK."""
-    if canonical is None:
-        return [Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable")]
+    """Compare a claimed citation against the canonical record. Empty list = OK.
+
+    ``retraction_override`` (retracted, eoc), when given, replaces the canonical
+    record\'s retraction flags as the authoritative signal — used by the offline
+    Retraction Watch source. It applies even when ``canonical is None`` (CrossRef
+    could not resolve the DOI but the snapshot still knows it is retracted)."""
+    if retraction_override is not None:
+        retracted, eoc = retraction_override
+    else:
+        retracted = bool(canonical and canonical.retracted)
+        eoc = bool(canonical and canonical.eoc)
 
     findings: list[Finding] = []
-
-    # Retraction is orthogonal — fires regardless of author/year.
-    if canonical.retracted:
+    if retracted:
         findings.append(
             Finding(citation, Tier.RETRACTION, canonical, f"RETRACTED per {retraction_source}")
         )
-    elif canonical.eoc:
+    elif eoc:
         findings.append(
             Finding(
                 citation,
@@ -121,6 +129,14 @@ def evaluate(
                 f"Expression of concern per {retraction_source}",
             )
         )
+
+    if canonical is None:
+        # No CrossRef record: the byline is genuinely unverifiable. The retraction
+        # (if any) is already reported above.
+        findings.append(
+            Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable")
+        )
+        return findings
 
     # Author/year only when the input actually claimed an author (not DOI-list mode).
     if citation.claimed_first_author:

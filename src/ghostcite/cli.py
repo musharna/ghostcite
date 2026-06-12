@@ -8,7 +8,7 @@ from contextlib import ExitStack
 from ghostcite import __version__
 from ghostcite.compare import cross_check_pubmed, evaluate
 from ghostcite.crossref import CrossRefClient
-from ghostcite.models import CanonicalRecord, Finding, Tier
+from ghostcite.models import Finding, Tier
 from ghostcite.parsers import parse
 from ghostcite.pubmed import PubMedClient
 from ghostcite.report import render_json, render_text
@@ -196,14 +196,12 @@ def main(argv=None) -> int:
                         c.claimed_first_author, c.claimed_year, c.claimed_title
                     )
                 if rdb is not None:
-                    db_retracted, db_eoc = rdb.lookup(c.doi or (rec.doi if rec else "") or "")
-                    if rec is not None:
-                        rec.retracted, rec.eoc = db_retracted, db_eoc
-                    elif db_retracted or db_eoc:
-                        rec = CanonicalRecord(
-                            doi=c.doi, retracted=db_retracted, eoc=db_eoc
-                        )
-                cite_findings = evaluate(c, rec, retraction_source=retraction_source)
+                    override = rdb.lookup(c.doi or (rec.doi if rec else "") or "")
+                    cite_findings = evaluate(
+                        c, rec, retraction_source=retraction_source, retraction_override=override
+                    )
+                else:
+                    cite_findings = evaluate(c, rec, retraction_source=retraction_source)
                 if pmclient is not None:
                     if c.doi:
                         pm = pmclient.lookup_by_doi(c.doi)

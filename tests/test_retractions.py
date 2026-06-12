@@ -148,3 +148,35 @@ def test_fetch_http_error_raises(tmp_path, httpx_mock):
     )
     with pytest.raises(httpx.HTTPStatusError):
         fetch_retractions("me@x.org", tmp_path / "x.csv")
+
+
+def test_fetch_row_count_no_trailing_newline(tmp_path, httpx_mock):
+    """row_count is correct when CSV body has no trailing newline."""
+    body = (
+        "OriginalPaperDOI,RetractionNature\n"
+        "10.1/a,Retraction\n"
+        "10.1/b,Retraction"  # no trailing newline
+    )
+    httpx_mock.add_response(
+        url="https://api.labs.crossref.org/data/retractionwatch?mailto=me@x.org",
+        content=body.encode(),
+    )
+    dest = tmp_path / "retractions.csv"
+    meta = fetch_retractions("me@x.org", dest)
+    assert meta["row_count"] == 2
+
+
+def test_fetch_row_count_with_trailing_newline(tmp_path, httpx_mock):
+    """row_count is correct when CSV body ends with a newline (existing behavior preserved)."""
+    body = (
+        "OriginalPaperDOI,RetractionNature\n"
+        "10.1/a,Retraction\n"
+        "10.1/b,Retraction\n"  # trailing newline
+    )
+    httpx_mock.add_response(
+        url="https://api.labs.crossref.org/data/retractionwatch?mailto=me@x.org",
+        content=body.encode(),
+    )
+    dest = tmp_path / "retractions.csv"
+    meta = fetch_retractions("me@x.org", dest)
+    assert meta["row_count"] == 2
