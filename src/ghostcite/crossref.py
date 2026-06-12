@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from typing import TYPE_CHECKING
 
@@ -14,6 +15,17 @@ if TYPE_CHECKING:
 
 _BASE = "https://api.crossref.org"
 _UA = f"ghostcite/{__version__} (https://github.com/musharna/ghostcite)"
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_jats(raw: str | None) -> str | None:
+    """Flatten a CrossRef JATS abstract string to plain text, or None."""
+    if not raw:
+        return None
+    text = _TAG_RE.sub("", raw)
+    text = " ".join(text.split())  # collapse whitespace
+    return text or None
 
 
 def _retraction_flags(message: dict) -> tuple[bool, bool]:
@@ -68,6 +80,7 @@ def _record_from_message(message: dict, low_confidence: bool = False) -> Canonic
         retracted=retracted,
         eoc=eoc,
         low_confidence=low_confidence,
+        abstract=_strip_jats(message.get("abstract")),
     )
 
 
@@ -100,9 +113,7 @@ class CrossRefClient:
             self._pacer.update_from_headers(r.headers)
         return r
 
-    def lookup_by_doi(
-        self, doi: str, *, cache: DoiCache | None = None
-    ) -> CanonicalRecord | None:
+    def lookup_by_doi(self, doi: str, *, cache: DoiCache | None = None) -> CanonicalRecord | None:
         """Look up a DOI against CrossRef, with optional read-through caching.
 
         Parameters
