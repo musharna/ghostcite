@@ -327,10 +327,13 @@ def test_public_surface_resolves():
         "__version__",
         "check_doi",
         "check_text",
+        "check_claim_support",
         "CheckResult",
         "Finding",
         "Tier",
         "CanonicalRecord",
+        "SemanticVerdict",
+        "SupportResult",
         "RetractionDB",
         "resolve_db",
     }

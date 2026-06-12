@@ -5,6 +5,7 @@ Exposes:
   check_text  -- verify all citations in a text blob (bibtex/markdown/doi list)
   CheckResult -- collapsed result for a single DOI lookup
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ _TIER_PRIORITY: dict[Tier, int] = {
     Tier.YEAR: 4,
     Tier.COSMETIC: 3,
     Tier.UNRESOLVABLE: 2,
+    Tier.SUPPORT: 2,
     Tier.OK: 1,
 }
 
@@ -253,3 +255,15 @@ def _collapse(doi: str | None, findings: list[Finding]) -> CheckResult:
         canonical=worst.canonical,
         cross_check=worst.cross_check,
     )
+
+
+def check_claim_support(claim, doi, *, backend, source_provider=None, cache=None):
+    """Verify whether the cited paper's abstract supports a claim (semantic, opt-in).
+
+    Thin re-export of :func:`ghostcite.semantic.support.check_claim_support`. The
+    semantic subpackage is imported lazily so the deterministic core never pulls
+    it in unless this function is actually called.
+    """
+    from ghostcite.semantic.support import check_claim_support as _impl
+
+    return _impl(claim, doi, backend=backend, source_provider=source_provider, cache=cache)
