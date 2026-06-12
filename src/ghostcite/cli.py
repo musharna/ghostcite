@@ -11,8 +11,13 @@ from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
 from ghostcite.parsers import parse
 from ghostcite.pubmed import PubMedClient
-from ghostcite.retractions import RetractionDBError, default_cache_path, fetch_retractions, resolve_db
 from ghostcite.report import render_json, render_text
+from ghostcite.retractions import (
+    RetractionDBError,
+    default_cache_path,
+    fetch_retractions,
+    resolve_db,
+)
 
 _TIER_BY_NAME = {
     "author": Tier.AUTHOR,
