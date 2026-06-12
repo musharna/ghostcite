@@ -96,7 +96,11 @@ def title_similar(a: str | None, b: str | None, threshold: float = 0.4) -> bool:
     return (inter / union) >= threshold
 
 
-def evaluate(citation: Citation, canonical: CanonicalRecord | None) -> list[Finding]:
+def evaluate(
+    citation: Citation,
+    canonical: CanonicalRecord | None,
+    retraction_source: str = "CrossRef",
+) -> list[Finding]:
     """Compare a claimed citation against the canonical record. Empty list = OK."""
     if canonical is None:
         return [Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable")]
@@ -105,14 +109,16 @@ def evaluate(citation: Citation, canonical: CanonicalRecord | None) -> list[Find
 
     # Retraction is orthogonal — fires regardless of author/year.
     if canonical.retracted:
-        findings.append(Finding(citation, Tier.RETRACTION, canonical, "RETRACTED per CrossRef"))
+        findings.append(
+            Finding(citation, Tier.RETRACTION, canonical, f"RETRACTED per {retraction_source}")
+        )
     elif canonical.eoc:
         findings.append(
             Finding(
                 citation,
                 Tier.RETRACTION,
                 canonical,
-                "Expression of concern per CrossRef",
+                f"Expression of concern per {retraction_source}",
             )
         )
 
