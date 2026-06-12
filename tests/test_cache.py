@@ -6,8 +6,8 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from ghostcite.cache import MISS, DoiCache
 
+from ghostcite.cache import MISS, DoiCache
 from ghostcite.models import CanonicalRecord
 
 
