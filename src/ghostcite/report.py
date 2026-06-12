@@ -10,6 +10,7 @@ _GLYPH = {
     Tier.COSMETIC: "· C",
     Tier.RETRACTION: "⚠ R",
     Tier.UNRESOLVABLE: "? U",
+    Tier.SUPPORT: "≈ S",
 }
 
 _ANSI = {
@@ -18,6 +19,7 @@ _ANSI = {
     Tier.RETRACTION: "\033[35m",
     Tier.COSMETIC: "\033[2m",
     Tier.UNRESOLVABLE: "\033[2m",
+    Tier.SUPPORT: "\033[33m",
 }
 _RESET = "\033[0m"
 
@@ -30,6 +32,18 @@ def _colorize(glyph: str, tier: Tier, enabled: bool) -> str:
     if not code:
         return glyph
     return f"{code}{glyph}{_RESET}"
+
+
+def _finding_line(f: Finding, color: bool) -> list[str]:
+    loc = f"L{f.citation.source_line}" if f.citation.source_line else "—"
+    who = f.citation.claimed_first_author or f.citation.doi or "?"
+    yr = f"({f.citation.claimed_year})" if f.citation.claimed_year else ""
+    doi = f"  [{f.citation.doi}]" if f.citation.doi else ""
+    glyph = _colorize(_GLYPH[f.tier], f.tier, color)
+    out = [f"  {glyph}  {loc}  {who} {yr}  →  {f.message}{doi}"]
+    if f.cross_check:
+        out.append(f"        ↳ {f.cross_check}")
+    return out
 
 
 def render_text(
@@ -47,15 +61,14 @@ def render_text(
     if not findings:
         lines.append("  0 findings — clean")
         return "\n".join(lines)
-    for f in sorted(findings, key=lambda x: x.citation.source_line or 0):
-        loc = f"L{f.citation.source_line}" if f.citation.source_line else "—"
-        who = f.citation.claimed_first_author or f.citation.doi or "?"
-        yr = f"({f.citation.claimed_year})" if f.citation.claimed_year else ""
-        doi = f"  [{f.citation.doi}]" if f.citation.doi else ""
-        glyph = _colorize(_GLYPH[f.tier], f.tier, color)
-        lines.append(f"  {glyph}  {loc}  {who} {yr}  →  {f.message}{doi}")
-        if f.cross_check:
-            lines.append(f"        ↳ {f.cross_check}")
+    det = [f for f in findings if f.deterministic]
+    sem = [f for f in findings if not f.deterministic]
+    for f in sorted(det, key=lambda x: x.citation.source_line or 0):
+        lines.extend(_finding_line(f, color))
+    if sem:
+        lines.append("  — semantic (non-deterministic) —")
+        for f in sorted(sem, key=lambda x: x.citation.source_line or 0):
+            lines.extend(_finding_line(f, color))
     counts: dict[str, int] = {}
     for f in findings:
         counts[f.tier.value] = counts.get(f.tier.value, 0) + 1
@@ -82,6 +95,7 @@ def render_json(
         "findings": [
             {
                 "tier": f.tier.value,
+                "deterministic": f.deterministic,
                 "line": f.citation.source_line,
                 "claimed_author": f.citation.claimed_first_author,
                 "claimed_year": f.citation.claimed_year,
