@@ -312,3 +312,28 @@ class TestCheckText:
         findings = check_text(BIBTEX_WRONG_AUTHOR, client=FakeClient())
         for f in findings:
             assert isinstance(f, Finding)
+
+
+# ---------------------------------------------------------------------------
+# __init__.py public surface test
+# ---------------------------------------------------------------------------
+
+
+def test_public_surface_resolves():
+    """All symbols in ghostcite.__all__ must be importable from the top-level package."""
+    import ghostcite
+
+    expected = {
+        "__version__",
+        "check_doi",
+        "check_text",
+        "CheckResult",
+        "Finding",
+        "Tier",
+        "CanonicalRecord",
+        "RetractionDB",
+        "resolve_db",
+    }
+    assert set(ghostcite.__all__) == expected
+    for name in ghostcite.__all__:
+        assert hasattr(ghostcite, name), f"ghostcite.{name} missing"
