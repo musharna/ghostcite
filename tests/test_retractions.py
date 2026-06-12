@@ -2,7 +2,13 @@
 from __future__ import annotations
 
 import pytest
-from ghostcite.retractions import RetractionDB, RetractionDBError, normalize_doi
+from ghostcite.retractions import (
+    RetractionDB,
+    RetractionDBError,
+    default_cache_path,
+    normalize_doi,
+    resolve_db,
+)
 
 _CSV = (
     "RecordID,OriginalPaperDOI,RetractionDOI,RetractionNature\n"
@@ -70,3 +76,34 @@ def test_semicolon_multi_doi_cell(tmp_path):
     db = RetractionDB.load(p)
     assert db.lookup("10.1/a") == (True, False)
     assert db.lookup("10.1/b") == (True, False)
+
+
+def test_default_cache_path_honors_xdg(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    assert default_cache_path() == tmp_path / "ghostcite" / "retractions.csv"
+
+
+def test_resolve_db_none_literal_returns_none():
+    assert resolve_db("none") is None
+    assert resolve_db("NONE") is None
+
+
+def test_resolve_db_explicit_path(tmp_path):
+    p = tmp_path / "rw.csv"
+    p.write_text("OriginalPaperDOI,RetractionNature\n10.1/a,Retraction\n", "utf-8")
+    db = resolve_db(str(p))
+    assert db is not None and db.lookup("10.1/a") == (True, False)
+
+
+def test_resolve_db_auto_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    cache = tmp_path / "ghostcite" / "retractions.csv"
+    cache.parent.mkdir(parents=True)
+    cache.write_text("OriginalPaperDOI,RetractionNature\n10.1/c,Retraction\n", "utf-8")
+    db = resolve_db(None)
+    assert db is not None and db.lookup("10.1/c") == (True, False)
+
+
+def test_resolve_db_absent_cache_returns_none(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))  # nothing written
+    assert resolve_db(None) is None

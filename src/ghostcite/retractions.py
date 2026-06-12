@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import io
+import os
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -22,7 +23,7 @@ def normalize_doi(doi: str | None) -> str:
     low = s.lower()
     for pref in _DOI_PREFIXES:
         if low.startswith(pref):
-            s = s[len(pref) :]
+            s = s[len(pref):]
             break
     return s.strip().lower()
 
@@ -46,7 +47,7 @@ class RetractionDB:
         return (d in self.retracted, d in self.eoc)
 
     @classmethod
-    def load(cls, path: str | Path) -> RetractionDB:
+    def load(cls, path: str | Path) -> "RetractionDB":
         p = Path(path)
         try:
             text = p.read_text(encoding="utf-8-sig", errors="replace")
@@ -54,7 +55,9 @@ class RetractionDB:
             raise RetractionDBError(f"cannot read retraction db {p}: {e}") from e
         reader = csv.DictReader(io.StringIO(text))
         if not reader.fieldnames or "OriginalPaperDOI" not in reader.fieldnames:
-            raise RetractionDBError(f"{p}: missing required 'OriginalPaperDOI' column")
+            raise RetractionDBError(
+                f"{p}: missing required 'OriginalPaperDOI' column"
+            )
         retracted: set[str] = set()
         eoc: set[str] = set()
         rows = 0
@@ -98,3 +101,23 @@ def _snapshot_date(csv_path: Path) -> str:
         return date.fromtimestamp(csv_path.stat().st_mtime).isoformat()
     except OSError:
         return ""
+
+
+def default_cache_path() -> Path:
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache"
+    )
+    return Path(base) / "ghostcite" / "retractions.csv"
+
+
+def resolve_db(retraction_db_arg: str | None) -> RetractionDB | None:
+    """Precedence: literal 'none' -> None; explicit path -> load (error if bad);
+    no arg + default cache exists -> load cache; otherwise -> None (live)."""
+    if retraction_db_arg is not None and retraction_db_arg.strip().lower() == "none":
+        return None
+    if retraction_db_arg:
+        return RetractionDB.load(retraction_db_arg)
+    cache = default_cache_path()
+    if cache.exists():
+        return RetractionDB.load(cache)
+    return None
