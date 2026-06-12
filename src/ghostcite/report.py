@@ -32,9 +32,18 @@ def _colorize(glyph: str, tier: Tier, enabled: bool) -> str:
     return f"{code}{glyph}{_RESET}"
 
 
-def render_text(findings: list[Finding], total: int, with_doi: int, *, color: bool = False) -> str:
+def render_text(
+    findings: list[Finding],
+    total: int,
+    with_doi: int,
+    *,
+    color: bool = False,
+    retraction_source: str | None = None,
+) -> str:
     findings = [f for f in findings if f.tier is not Tier.OK]
     lines = [f"ghostcite: {total} entries, {with_doi} with DOIs"]
+    if retraction_source:
+        lines.append(f"  retractions: {retraction_source}")
     if not findings:
         lines.append("  0 findings — clean")
         return "\n".join(lines)
@@ -55,10 +64,21 @@ def render_text(findings: list[Finding], total: int, with_doi: int, *, color: bo
     return "\n".join(lines)
 
 
-def render_json(findings: list[Finding], total: int, with_doi: int) -> str:
+def render_json(
+    findings: list[Finding],
+    total: int,
+    with_doi: int,
+    *,
+    retraction_source: str | None = None,
+) -> str:
     findings = [f for f in findings if f.tier is not Tier.OK]
     payload = {
-        "summary": {"total": total, "with_doi": with_doi, "findings": len(findings)},
+        "summary": {
+            "total": total,
+            "with_doi": with_doi,
+            "findings": len(findings),
+            "retraction_source": retraction_source,
+        },
         "findings": [
             {
                 "tier": f.tier.value,

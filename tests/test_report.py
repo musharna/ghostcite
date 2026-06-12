@@ -59,3 +59,19 @@ def test_json_is_machine_readable():
     assert data["summary"]["total"] == 46
     assert data["findings"][0]["tier"] == "A"
     assert data["findings"][0]["doi"] == "10.3390/cimb46080535"
+
+
+def test_text_shows_retraction_source():
+    out = render_text([], total=1, with_doi=1, retraction_source="CrossRef live")
+    assert "retractions: CrossRef live" in out
+
+
+def test_text_no_source_line_when_unset():
+    out = render_text([], total=1, with_doi=1)
+    assert "retractions:" not in out
+
+
+def test_json_includes_retraction_source():
+    out = render_json([], total=1, with_doi=1, retraction_source="Retraction Watch snapshot 2026-06-11")
+    data = json.loads(out)
+    assert data["summary"]["retraction_source"] == "Retraction Watch snapshot 2026-06-11"
