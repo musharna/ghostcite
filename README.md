@@ -186,6 +186,30 @@ repos:
 Either way, a finding at or above the `--fail-on` threshold returns a non-zero
 exit, blocking the merge or commit before submission.
 
+### Offline / reproducible retractions
+
+By default ghostcite reads retraction status from CrossRef live. For a
+**deterministic, byte-reproducible** retraction check — with broader coverage than
+CrossRef's own flags — point it at a
+[Retraction Watch](https://www.crossref.org/labs/retraction-watch/) snapshot:
+
+```bash
+ghostcite fetch-retractions --mailto you@org      # → ~/.cache/ghostcite/retractions.csv
+ghostcite refs.bib                                # auto-uses the cached snapshot
+ghostcite refs.bib --retraction-db vendor/rw.csv  # or pin an exact snapshot in CI
+ghostcite refs.bib --retraction-db none           # force live CrossRef
+```
+
+When a snapshot is active it is the **authoritative** retraction source (the live
+CrossRef signal is skipped) and the report names the snapshot in use. The
+byline/year check still queries CrossRef live — this makes the _retraction tier_
+offline and reproducible, not the whole run. Pin a committed snapshot in CI for
+byte-reproducible results.
+
+Retraction data: Crossref + Retraction Watch (The Center for Scientific
+Integrity). ghostcite downloads it on demand and does not redistribute it; see
+[`NOTICE`](NOTICE).
+
 ## Scope &amp; limitations
 
 `ghostcite` checks **metadata correctness** (does the DOI's record match what you

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-11
+
+### Added
+
+- Offline / reproducible retraction checking via a local Retraction Watch
+  snapshot. `ghostcite fetch-retractions --mailto …` downloads the snapshot to
+  the XDG cache (with a provenance sidecar); `--retraction-db <path>` pins an
+  exact snapshot (or `none` to force live CrossRef). When a snapshot is active it
+  is the authoritative retraction source and the report names it; the byline/year
+  check still queries CrossRef live. Attribution: Crossref + Retraction Watch
+  (The Center for Scientific Integrity) — see `NOTICE`.
+
 ## [0.1.0] - 2026-06-08
 
 Initial release.

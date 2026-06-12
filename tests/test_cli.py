@@ -103,7 +103,7 @@ def test_version_flag_prints_and_exits_0(capsys):
     with pytest.raises(SystemExit) as exc:
         cli.main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.strip() == "ghostcite 0.1.0"
+    assert capsys.readouterr().out.strip() == "ghostcite 0.2.0"
 
 
 def test_max_rps_nonpositive_exits_2(tmp_path):
@@ -145,17 +145,21 @@ def test_python_m_entrypoint():
         text=True,
     )
     assert result.returncode == 0
-    assert "ghostcite 0.1.0" in result.stdout
+    assert "ghostcite 0.2.0" in result.stdout
 
 
 def _retracted_fake(monkeypatch):
     class RetractFake(FakeClient):
         table = {
             "10.1/ret": CanonicalRecord(
-                doi="10.1/ret", authors=["Doe"], year=2000, title="t",
+                doi="10.1/ret",
+                authors=["Doe"],
+                year=2000,
+                title="t",
                 retracted=False,  # CrossRef itself does NOT flag it...
             ),
         }
+
     monkeypatch.setattr(cli, "CrossRefClient", RetractFake)
 
 

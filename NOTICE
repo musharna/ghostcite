@@ -1,0 +1,16 @@
+ghostcite — third-party data attribution
+=========================================
+
+Retraction data (optional feature: `ghostcite fetch-retractions` and
+`--retraction-db`):
+
+  Retraction Watch database, compiled by The Center for Scientific Integrity,
+  acquired and made publicly available by Crossref, and distributed via
+  Crossref Labs (https://www.crossref.org/labs/retraction-watch/).
+
+  ghostcite downloads this dataset on demand directly from Crossref's endpoint;
+  it is NOT bundled with or redistributed as part of this package. When you use
+  the offline retraction feature, please credit Crossref and Retraction Watch
+  (The Center for Scientific Integrity) as the data source.
+
+The ghostcite source code itself is licensed under the MIT License (see LICENSE).
