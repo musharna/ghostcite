@@ -218,3 +218,20 @@ def test_fetch_retractions_success(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "Retraction Watch" in out  # attribution printed
     assert "5" in out
+
+
+def test_retraction_db_flags_even_when_crossref_404s(tmp_path, capsys, monkeypatch):
+    """DB retraction must fire even when CrossRef returns None (404/unreachable)."""
+
+    class NotFoundFake(FakeClient):
+        def lookup_by_doi(self, doi):
+            return None
+
+    monkeypatch.setattr(cli, "CrossRefClient", NotFoundFake)
+    db = tmp_path / "rw.csv"
+    db.write_text("OriginalPaperDOI,RetractionNature\n10.9999/x,Retraction\n", "utf-8")
+    f = _write(tmp_path, "@article{k, author={Doe, J}, year={2020}, title={t}, doi={10.9999/x}}")
+    code = cli.main([f, "--retraction-db", str(db)])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "RETRACTED per Retraction Watch" in out
