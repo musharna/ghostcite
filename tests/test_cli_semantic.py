@@ -40,6 +40,61 @@ def _claims_file(tmp_path):
     return str(p)
 
 
+def test_claims_fetch_transport_error_exits_2(tmp_path, capsys, monkeypatch):
+    # A network failure during abstract retrieval must become a clean exit 2,
+    # not an uncaught traceback.
+    import httpx
+
+    import ghostcite.semantic.backends as backends_mod
+    import ghostcite.semantic.support as support_mod
+
+    monkeypatch.setattr(backends_mod, "build_backend", lambda *a, **k: FakeBackend())
+
+    class BoomProvider:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_abstract(self, doi):
+            raise httpx.ConnectError("boom")
+
+    monkeypatch.setattr(support_mod, "AbstractProvider", BoomProvider)
+    code = cli.main(
+        [
+            "--claims",
+            _claims_file(tmp_path),
+            "--semantic-backend",
+            "openai",
+            "--semantic-base-url",
+            "http://x/v1",
+            "--semantic-model",
+            "m",
+        ]
+    )
+    assert code == 2
+    assert "claim-support check failed" in capsys.readouterr().err.lower()
+
+
+def test_claims_non_dict_items_are_skipped(tmp_path, capsys, monkeypatch):
+    _patch_semantic(monkeypatch)
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps([1, "two", {"claim": "X cures Y", "doi": "10.1/x"}]), "utf-8")
+    code = cli.main(
+        [
+            "--claims",
+            str(p),
+            "--semantic-backend",
+            "openai",
+            "--semantic-base-url",
+            "http://x/v1",
+            "--semantic-model",
+            "m",
+        ]
+    )
+    # non-dict items skipped (no crash); the one valid pair still reports
+    assert code == 0
+    assert "does not support" in capsys.readouterr().out
+
+
 def test_claims_manifest_reports_unsupported(tmp_path, capsys, monkeypatch):
     _patch_semantic(monkeypatch)
     code = cli.main(

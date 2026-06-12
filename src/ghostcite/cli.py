@@ -191,6 +191,8 @@ def _claims_main(args) -> int:
         with CrossRefClient(max_rps=args.max_rps) as client:
             provider = _support.AbstractProvider(client=client, cache=DoiCache())
             for item in pairs:
+                if not isinstance(item, dict):
+                    continue
                 claim = item.get("claim")
                 doi = item.get("doi")
                 if not claim or not doi:
@@ -200,8 +202,8 @@ def _claims_main(args) -> int:
                 )
                 if f is not None:
                     findings.append(f)
-    except _backends.SemanticBackendError as e:
-        print(f"ghostcite: semantic check failed: {e}", file=sys.stderr)
+    except Exception as e:  # fail-loud: backend OR abstract-fetch transport error → exit 2
+        print(f"ghostcite: claim-support check failed: {e}", file=sys.stderr)
         return 2
 
     color = False if args.json else _want_color(args.color)
