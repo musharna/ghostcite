@@ -7,9 +7,10 @@ from contextlib import ExitStack
 
 from ghostcite import __version__
 from ghostcite.api import _process_citation
-from ghostcite.compare import cross_check_pubmed
+from ghostcite.compare import cross_check_openalex, cross_check_pubmed
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
+from ghostcite.openalex import OpenAlexClient
 from ghostcite.parsers import parse
 from ghostcite.pubmed import PubMedClient
 from ghostcite.report import render_json, render_text
@@ -65,9 +66,9 @@ def _parse_args(argv):
     )
     p.add_argument(
         "--cross-check",
-        choices=["none", "pubmed"],
         default="none",
-        help="second source to corroborate findings against (default none)",
+        help="comma-separated sources to corroborate findings against "
+        "(choices: pubmed, openalex; default none)",
     )
     p.add_argument(
         "--ncbi-email",
@@ -78,6 +79,11 @@ def _parse_args(argv):
         "--ncbi-api-key",
         default=os.environ.get("NCBI_API_KEY"),
         help="NCBI API key for higher rate limits (or set NCBI_API_KEY)",
+    )
+    p.add_argument(
+        "--openalex-mailto",
+        default=os.environ.get("OPENALEX_MAILTO"),
+        help="contact email for OpenAlex polite pool (or set OPENALEX_MAILTO)",
     )
     p.add_argument(
         "--retraction-db",
@@ -112,6 +118,20 @@ def _parse_args(argv):
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
         p.error("--max-rps must be > 0")
+    # Parse --cross-check into a validated set of source names.
+    _KNOWN_SOURCES = {"pubmed", "openalex"}
+    raw = args.cross_check.strip().lower()
+    if raw == "none":
+        args.cross_sources = set()
+    else:
+        parts = {s.strip() for s in raw.split(",") if s.strip()}
+        unknown = parts - _KNOWN_SOURCES
+        if unknown:
+            p.error(
+                f"unknown --cross-check source(s): {', '.join(sorted(unknown))}; "
+                f"valid choices are: {', '.join(sorted(_KNOWN_SOURCES))}"
+            )
+        args.cross_sources = parts
     return args
 
 
@@ -286,17 +306,25 @@ def main(argv=None) -> int:
     retraction_source = rdb.source_label if rdb else "CrossRef live"
 
     findings: list[Finding] = []
-    use_pubmed = args.cross_check == "pubmed"
+    cross_sources = args.cross_sources
     try:
         with ExitStack() as stack:
             client = stack.enter_context(CrossRefClient(max_rps=args.max_rps))
             pmclient = None
-            if use_pubmed:
+            if "pubmed" in cross_sources:
                 pmclient = stack.enter_context(
                     PubMedClient(
                         max_rps=args.max_rps,
                         email=args.ncbi_email,
                         api_key=args.ncbi_api_key,
+                    )
+                )
+            oaclient = None
+            if "openalex" in cross_sources:
+                oaclient = stack.enter_context(
+                    OpenAlexClient(
+                        max_rps=args.max_rps,
+                        mailto=args.openalex_mailto,
                     )
                 )
             for c in citations:
@@ -311,6 +339,9 @@ def main(argv=None) -> int:
                             c.claimed_first_author, c.claimed_year, c.claimed_title
                         )
                     cross_check_pubmed(c, rec, cite_findings, pm)
+                if oaclient is not None and c.doi:
+                    oa = oaclient.lookup_by_doi(c.doi)
+                    cross_check_openalex(c, rec, cite_findings, oa)
                 findings.extend(cite_findings)
     except Exception as e:  # fail-loud: surface, keep partial findings
         print(f"ghostcite: cross-check error: {e}", file=sys.stderr)

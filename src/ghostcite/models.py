@@ -53,6 +53,14 @@ class PubMedRecord:
 
 
 @dataclass
+class OpenAlexRecord:
+    first_author_surname: str | None = None
+    year: int | None = None
+    title: str | None = None
+    retracted: bool = False
+
+
+@dataclass
 class Finding:
     citation: Citation
     tier: Tier

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 
-from ghostcite.models import CanonicalRecord, Citation, Finding, PubMedRecord, Tier
+from ghostcite.models import CanonicalRecord, Citation, Finding, OpenAlexRecord, PubMedRecord, Tier
 
 
 def normalize_surname(name: str | None) -> str:
@@ -567,5 +567,115 @@ def cross_check_pubmed(
                 canonical,
                 f"PubMed year is {pubmed.year}",
                 cross_check="raised by PubMed",
+            )
+        )
+
+
+def cross_check_openalex(
+    citation: Citation,
+    canonical: CanonicalRecord | None,
+    findings: list[Finding],
+    openalex: OpenAlexRecord | None,
+) -> None:
+    """Reconcile CrossRef-derived ``findings`` against an OpenAlex record in place.
+
+    Mirrors ``cross_check_pubmed`` exactly (same five-step structure and semantics),
+    with "OpenAlex" as the source label. No EoC field on OpenAlexRecord.
+
+    Semantics:
+      * CrossRef had no record (UNRESOLVABLE) + OpenAlex resolves → annotate the
+        unresolvable finding: evaluable via OpenAlex (low confidence).
+      * An AUTHOR/YEAR finding that OpenAlex *corroborates* (OpenAlex agrees with
+        CrossRef, not the claim) → note "corroborated by OpenAlex", tier kept.
+      * An AUTHOR/YEAR finding that OpenAlex *contradicts* (OpenAlex agrees with the
+        cited claim) → conflict note, tier kept (manual review).
+      * No CrossRef author/year finding but OpenAlex disagrees with the claim →
+        NEW AUTHOR/YEAR finding "raised by OpenAlex".
+      * Retraction is OR-combined: OpenAlex-flagged retraction appends a RETRACTION
+        finding if CrossRef didn't already.
+    """
+    if openalex is None:
+        return
+
+    claimed_author = _surname_key(citation.claimed_first_author)
+    # OpenAlex's surname field is a pure surname — fold only, don't initials-strip.
+    oa_author = normalize_surname(openalex.first_author_surname)
+    claimed_year = citation.claimed_year
+
+    # 1. Retraction — OR-combine with CrossRef (no EoC on OpenAlexRecord).
+    if openalex.retracted and not any(f.tier is Tier.RETRACTION for f in findings):
+        findings.append(
+            Finding(
+                citation,
+                Tier.RETRACTION,
+                canonical,
+                "RETRACTED per OpenAlex",
+                cross_check="raised by OpenAlex",
+            )
+        )
+
+    # 2. CrossRef had no usable record → OpenAlex makes it evaluable.
+    if canonical is None:
+        for f in findings:
+            if f.tier is Tier.UNRESOLVABLE:
+                f.cross_check = "resolved via OpenAlex; CrossRef had no record (low confidence)"
+        return
+
+    author_year_findings = [f for f in findings if f.tier in (Tier.AUTHOR, Tier.YEAR)]
+
+    # 3. Existing AUTHOR/YEAR findings — does OpenAlex back CrossRef or the claim?
+    no_data_note = "OpenAlex record had no author/year data — not verifiable"
+    for f in author_year_findings:
+        if f.tier is Tier.AUTHOR and oa_author and claimed_author:
+            if oa_author == claimed_author:
+                f.cross_check = (
+                    "⚠ OpenAlex agrees with the cited author — CrossRef and OpenAlex "
+                    "conflict; verify manually"
+                )
+            else:
+                f.cross_check = "corroborated by OpenAlex"
+        elif f.tier is Tier.YEAR and openalex.year and claimed_year:
+            if openalex.year == claimed_year:
+                f.cross_check = (
+                    "⚠ OpenAlex agrees with the cited year — CrossRef and OpenAlex "
+                    "conflict; verify manually"
+                )
+            else:
+                f.cross_check = "corroborated by OpenAlex"
+        else:
+            # OpenAlex was consulted but lacks the usable author/year needed to
+            # corroborate this finding — say so instead of leaving it silent.
+            f.cross_check = no_data_note
+
+    # 4. CrossRef raised no author finding but OpenAlex disagrees with the claim.
+    has_author_finding = any(f.tier is Tier.AUTHOR for f in findings)
+    if not has_author_finding and claimed_author and oa_author and oa_author != claimed_author:
+        findings.append(
+            Finding(
+                citation,
+                Tier.AUTHOR,
+                canonical,
+                f"OpenAlex first author is {openalex.first_author_surname}",
+                cross_check="raised by OpenAlex",
+            )
+        )
+
+    # 5. CrossRef raised no year finding but OpenAlex disagrees with the claimed year.
+    has_year_finding = any(f.tier is Tier.YEAR for f in findings)
+    if (
+        not has_year_finding
+        and claimed_year
+        and openalex.year
+        and openalex.year != claimed_year
+        # Only when the author lines up — otherwise the author finding carries it.
+        and (not oa_author or not claimed_author or oa_author == claimed_author)
+    ):
+        findings.append(
+            Finding(
+                citation,
+                Tier.YEAR,
+                canonical,
+                f"OpenAlex year is {openalex.year}",
+                cross_check="raised by OpenAlex",
             )
         )
