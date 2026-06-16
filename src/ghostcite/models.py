@@ -13,6 +13,7 @@ class Tier(str, Enum):
     TITLE = "T"  # DOI resolves to a different paper (identifier hijacking)
     UNRESOLVABLE = "U"  # DOI not found / no-DOI entry unresolved
     SUPPORT = "S"  # (semantic, non-deterministic) cited source does not support the claim
+    VENUE = "V"  # cited venue/journal disagrees with CrossRef container-title (warn-only)
 
 
 @dataclass
@@ -23,6 +24,7 @@ class Citation:
     claimed_first_author: str | None = None
     claimed_year: int | None = None
     claimed_title: str | None = None
+    claimed_journal: str | None = None
 
 
 @dataclass

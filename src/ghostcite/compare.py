@@ -84,6 +84,159 @@ def _title_tokens(title: str) -> set[str]:
     return {w for w in words if len(w) > 2 and w not in stop}
 
 
+_VENUE_STOP = {
+    "the",
+    "of",
+    "and",
+    "for",
+    "on",
+    "in",
+    "journal",
+    "proceedings",
+    "annals",
+    "review",
+    "reviews",
+}
+
+
+def _venue_norm(name: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", name)
+    ascii_only = "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+    return "".join(c if c.isalnum() else " " for c in ascii_only)
+
+
+def _venue_tokens(name: str) -> list[str]:
+    return [w for w in _venue_norm(name).split() if w not in _VENUE_STOP and len(w) > 1]
+
+
+_VENUE_INITIALISM_STOP = {"the", "of", "and", "for", "on", "in", "a", "an"}
+
+
+def _venue_initialism(name: str) -> str:
+    """First letter of each non-connector word: used for acronym matching.
+
+    Uses a smaller stop set than _venue_tokens so that "Proceedings", "Journal",
+    etc. contribute their initial (PNAS = Proceedings National Academy Sciences;
+    JMB = Journal Molecular Biology)."""
+    words = [w for w in _venue_norm(name).split() if w not in _VENUE_INITIALISM_STOP]
+    return "".join(w[0] for w in words if w)
+
+
+def _prefix_covered(short_tokens: list[str], long_tokens: list[str]) -> bool:
+    """True when every token in short_tokens is a prefix of some token in long_tokens.
+
+    Handles dotted abbreviations: ["mol", "biol"] vs ["molecular", "biology"] → True.
+    Also handles single-char initials: ["j", "mol", "biol"] vs ["molecular", "biology"] would
+    still pass (j is a prefix of journal, but journal is stop-filtered; the check is directional
+    and only needs the non-stop abbreviation tokens to be covered)."""
+    return all(any(tok.startswith(s) for tok in long_tokens) for s in short_tokens)
+
+
+def _venue_loose_tokens(name: str) -> list[str]:
+    """Venue tokens with ONLY connectors removed (reuses _VENUE_INITIALISM_STOP).
+
+    Unlike _venue_tokens, this keeps content words such as 'proceedings', 'review',
+    'journal', 'annals' so that abbreviations of those words ('proc', 'rev', 'j')
+    have a long-form token to match against in _is_abbrev_of.  _venue_tokens uses
+    a wider stop set that strips those words; the asymmetry is what causes false
+    positives like 'Phys. Rev. Lett.' → 'Physical Review Letters' (the wide set
+    removes 'review' from the canonical side, leaving 'rev' with nothing to match)."""
+    return [w for w in _venue_norm(name).split() if w not in _VENUE_INITIALISM_STOP and len(w) >= 2]
+
+
+def _token_abbrev_match(short: str, long: str) -> bool:
+    """True when short token is an abbreviation of (or equal to) long token.
+
+    Matches:
+      - prefix: long.startswith(short)  e.g. "phys"→"physical", "lett"→"letters"
+      - subsequence (len>=2, same first letter): short[0]==long[0] and short is a subsequence of long
+        e.g. "natl"→"national", "acad"→"academy", "sci"→"sciences", "proc"→"proceedings"
+
+    The subsequence arm deliberately requires len(short)>=2 so that a bare single-letter
+    token cannot absorb unrelated long tokens — single-char tokens are handled
+    by the existing initialism / compact-form checks."""
+    if long.startswith(short):
+        return True
+    if len(short) >= 2 and short[0] == long[0]:
+        # Check short is a subsequence of long
+        it = iter(long)
+        return all(c in it for c in short)
+    return False
+
+
+def _is_abbrev_of(short_tokens: list[str], long_tokens: list[str]) -> bool:
+    """True when short_tokens looks like a multi-token abbreviation of long_tokens.
+
+    Uses loose tokens (connector-stop only, so 'proceedings'/'review'/'journal' are
+    present on the long side) to avoid the asymmetric stop-word bug in _prefix_covered.
+
+    Rule:
+      - For each short token, find a DISTINCT long token it abbreviation-matches
+        (_token_abbrev_match).
+      - At least 2 short tokens must be matched ('covered').
+      - At most 1 short token may remain unmatched ('tolerance' for trailing qualifiers
+        like 'U.S.A.' in 'Proc. Natl. Acad. Sci. U.S.A.').
+
+    The ≥2-covered floor prevents single-token venues like 'Nature' from accidentally
+    matching unrelated single-token venues like 'Cell' (neither would reach 2 covered).
+    This function is only called when short_tokens has ≥2 tokens; callers with a
+    single-token claimed form rely on the existing initialism/compact checks."""
+    if len(short_tokens) < 2:
+        return False
+    remaining_long = list(long_tokens)
+    covered = 0
+    unmatched = 0
+    for s in short_tokens:
+        matched = False
+        for i, long_tok in enumerate(remaining_long):
+            if _token_abbrev_match(s, long_tok):
+                remaining_long.pop(i)
+                covered += 1
+                matched = True
+                break
+        if not matched:
+            unmatched += 1
+    return covered >= 2 and unmatched <= 1
+
+
+def venue_mismatch(claimed: str | None, canonical: str | None, *, threshold: float = 0.5) -> bool:
+    """True only when the cited venue clearly disagrees with CrossRef's container-title.
+
+    Abbreviation-tolerant / high precision: returns False when one side's initialism matches
+    the other's (PNAS ~ Proceedings of the National Academy of Sciences; J Mol Biol ~ Journal of
+    Molecular Biology), when one token set is a subset of the other, or when token-Jaccard >=
+    threshold. Returns False if either side is missing or has no significant tokens."""
+    if not claimed or not canonical:
+        return False
+    tc, tk = set(_venue_tokens(claimed)), set(_venue_tokens(canonical))
+    if not tc or not tk:
+        return False
+    if tc <= tk or tk <= tc:
+        return False
+    # Initialism match either direction: a dotted/short form vs the spelled-out form.
+    claimed_compact = _venue_norm(claimed).replace(" ", "")
+    canon_compact = _venue_norm(canonical).replace(" ", "")
+    if claimed_compact in (_venue_initialism(canonical), canon_compact):
+        return False
+    if canon_compact in (_venue_initialism(claimed), claimed_compact):
+        return False
+    # Token-level prefix match: handles dotted abbreviations like "J. Mol. Biol." vs
+    # "Journal of Molecular Biology" where "mol"→"molecular" and "biol"→"biology".
+    tc_list, tk_list = list(tc), list(tk)
+    if _prefix_covered(tc_list, tk_list) or _prefix_covered(tk_list, tc_list):
+        return False
+    # Loose-token abbreviation match: fixes false positives where a content word
+    # (review, proceedings) is in _VENUE_STOP and gets stripped from the canonical
+    # token list, leaving its abbreviation (rev, proc) unmatched in _prefix_covered.
+    # Uses _VENUE_INITIALISM_STOP (connectors only) so both sides keep those words.
+    cl_loose = _venue_loose_tokens(claimed)
+    ck_loose = _venue_loose_tokens(canonical)
+    if _is_abbrev_of(cl_loose, ck_loose) or _is_abbrev_of(ck_loose, cl_loose):
+        return False
+    jacc = len(tc & tk) / len(tc | tk)
+    return jacc < threshold
+
+
 def title_similar(a: str | None, b: str | None, threshold: float = 0.4) -> bool:
     """Jaccard token overlap >= threshold. Used to tell wrong-author from wrong-DOI."""
     if not a or not b:
@@ -180,6 +333,20 @@ def evaluate(
                 Tier.TITLE,
                 canonical,
                 f'DOI resolves to a different title: CrossRef has "{canonical.title}"',
+            )
+        )
+
+    # Venue mismatch (warn-only): cited journal disagrees with CrossRef's container-title.
+    # Suppressed when AUTHOR/TITLE already fired (those carry the wrong-paper signal).
+    if not any(f.tier in (Tier.AUTHOR, Tier.TITLE) for f in findings) and venue_mismatch(
+        citation.claimed_journal, canonical.journal
+    ):
+        findings.append(
+            Finding(
+                citation,
+                Tier.VENUE,
+                canonical,
+                f'cited venue differs: CrossRef container is "{canonical.journal}"',
             )
         )
 

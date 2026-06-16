@@ -12,6 +12,7 @@ _GLYPH = {
     Tier.RETRACTION: "⚠ R",
     Tier.UNRESOLVABLE: "? U",
     Tier.SUPPORT: "≈ S",
+    Tier.VENUE: "· V",
 }
 
 _ANSI = {
@@ -22,6 +23,7 @@ _ANSI = {
     Tier.COSMETIC: "\033[2m",
     Tier.UNRESOLVABLE: "\033[2m",
     Tier.SUPPORT: "\033[33m",
+    Tier.VENUE: "\033[2m",
 }
 _RESET = "\033[0m"
 

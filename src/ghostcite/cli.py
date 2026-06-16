@@ -26,6 +26,7 @@ _TIER_BY_NAME = {
     "year": Tier.YEAR,
     "retraction": Tier.RETRACTION,
     "support": Tier.SUPPORT,
+    "venue": Tier.VENUE,
 }
 
 
@@ -48,7 +49,7 @@ def _parse_args(argv):
         "--fail-on",
         default="author,title,year,retraction",
         help="comma list of tiers that cause exit 1, or 'none' "
-        "(choices: author,title,year,retraction,support,none)",
+        "(choices: author,title,year,retraction,support,venue,none)",
     )
     p.add_argument(
         "--max-rps",

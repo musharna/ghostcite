@@ -236,3 +236,30 @@ def test_retraction_db_flags_even_when_crossref_404s(tmp_path, capsys, monkeypat
     assert code == 1
     assert "RETRACTED per Retraction Watch" in out
     assert "no author data" not in out
+
+
+def test_fail_on_venue(tmp_path, capsys, monkeypatch):
+    """Tier V: venue disagreement exits 0 by default, 1 with --fail-on venue."""
+
+    class VenueFake(FakeClient):
+        table = {
+            "10.1/venue": CanonicalRecord(
+                doi="10.1/venue",
+                authors=["Smith"],
+                year=2020,
+                title="A study of widgets and gadgets",
+                journal="Cell",
+            ),
+        }
+
+    monkeypatch.setattr(cli, "CrossRefClient", VenueFake)
+    bib = _write(
+        tmp_path,
+        "@article{k, author={Smith, J}, year={2020}, "
+        "title={A study of widgets and gadgets}, "
+        "journal={Nature}, doi={10.1/venue}}",
+    )
+    # Default --fail-on does NOT include venue → exit 0
+    assert cli.main([bib]) == 0
+    # Explicit --fail-on venue → exit 1
+    assert cli.main([bib, "--fail-on", "venue"]) == 1

@@ -49,6 +49,12 @@ def parse_bibtex(text: str) -> list[Citation]:
                 claimed_first_author=_first_author_surname(fields.get("author", "")) or None,
                 claimed_year=year,
                 claimed_title=fields.get("title") or None,
+                claimed_journal=(
+                    fields.get("journal")
+                    or fields.get("booktitle")
+                    or fields.get("journaltitle")
+                    or None
+                ),
             )
         )
     return cites
