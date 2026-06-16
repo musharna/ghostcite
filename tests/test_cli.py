@@ -106,7 +106,7 @@ def test_version_flag_prints_and_exits_0(capsys):
     with pytest.raises(SystemExit) as exc:
         cli.main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.strip() == "ghostcite 0.3.0"
+    assert capsys.readouterr().out.strip() == "ghostcite 0.4.0"
 
 
 def test_max_rps_nonpositive_exits_2(tmp_path):
@@ -148,7 +148,7 @@ def test_python_m_entrypoint():
         text=True,
     )
     assert result.returncode == 0
-    assert "ghostcite 0.3.0" in result.stdout
+    assert "ghostcite 0.4.0" in result.stdout
 
 
 def _retracted_fake(monkeypatch):

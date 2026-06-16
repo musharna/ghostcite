@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-16
+
+### Added
+
+- Venue-mismatch tier `V` (warn-only, opt-in): flags a cited journal/venue that disagrees with
+  CrossRef's container-title, using abbreviation-tolerant matching (so "J. Mol. Biol." vs
+  "Journal of Molecular Biology" does not fire). Informational by default; add `--fail-on venue`
+  to gate on it. Suppressed when an author/title mismatch already fired.
+- Preprint ↔ published awareness: a year difference that is explained by the DOI being a preprint
+  (or having a preprint/published relation) is downgraded from a CI-failing year mismatch to a
+  non-failing informational finding.
+- Dead-DOI resolution probe: when a DOI is absent from CrossRef, a `HEAD https://doi.org/<doi>`
+  distinguishes "dead/fabricated DOI" from "resolves but not in CrossRef" in the Tier U message.
+  Best-effort, never fails CI on its own; `--no-doi-probe` skips it for fully offline runs.
+- `--badge <path>`: writes a shields.io endpoint badge JSON (citation health) keyed to the active
+  `--fail-on` threshold (green/clean vs red/N issues). Warn-only tiers do not turn it red.
+- `--cross-check` now accepts a comma-separated list and adds **openalex** as a second source of
+  truth (mirroring the PubMed pass: corroborate/conflict, raise findings CrossRef missed, and
+  OR-combine retraction). `--cross-check pubmed` is unchanged; `--cross-check pubmed,openalex`
+  runs both. Optional `--openalex-mailto` / `OPENALEX_MAILTO` for the polite pool.
+
 ## [0.3.0] - 2026-06-12
 
 ### Added

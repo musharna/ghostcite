@@ -41,11 +41,13 @@ uv tool install ghostcite      # if you use uv
 ## Usage
 
 ```bash
-ghostcite refs.bib                         # check a BibTeX file (or .md / DOI list)
-ghostcite refs.bib --cross-check pubmed    # corroborate against PubMed
-ghostcite refs.bib --json                  # machine-readable output (for CI)
+ghostcite refs.bib                                    # check a BibTeX file (or .md / DOI list)
+ghostcite refs.bib --cross-check pubmed               # corroborate against PubMed
+ghostcite refs.bib --cross-check pubmed,openalex      # two independent sources of truth
+ghostcite refs.bib --badge badge.json                 # write a shields.io citation-health badge
+ghostcite refs.bib --json                             # machine-readable output (for CI)
 ghostcite refs.bib --fail-on author,year,retraction   # tune the CI gate
-cat refs.bib | ghostcite -                 # read from stdin
+cat refs.bib | ghostcite -                            # read from stdin
 ```
 
 Input format is auto-detected (BibTeX, Markdown reference list, or bare DOI list);
@@ -72,7 +74,7 @@ $ echo $?
   │ │   │     │                    └─ what CrossRef actually records
   │ │   │     └─ what you cited (claimed first author + year)
   │ │   └─ source line in your bibliography
-  │ └─ tier: A author · T title · B year · C cosmetic · R retraction · U unresolvable
+  │ └─ tier: A author · T title · B year · C cosmetic · R retraction · U unresolvable · V venue
   └─ glyph: ✗ fails CI · ⚠ retraction · · informational
 ```
 
@@ -83,7 +85,19 @@ $ echo $?
   also _raise_ a finding CrossRef missed, or supply a record for a DOI absent from
   CrossRef. Optional `--ncbi-email` / `--ncbi-api-key` (or `NCBI_EMAIL` /
   `NCBI_API_KEY`) follow NCBI E-utilities etiquette and unlock a higher rate limit;
-  neither is required.
+  neither is required. `--cross-check` accepts a comma-separated list:
+  **`--cross-check pubmed,openalex`** runs both PubMed and OpenAlex in the same pass
+  (OR-combining retraction, mirroring the PubMed corroborate/conflict/raise logic).
+  Optional `--openalex-mailto` / `OPENALEX_MAILTO` for the OpenAlex polite pool.
+- **`--badge <path>`** — write a [shields.io endpoint](https://shields.io/badges/endpoint-badge)
+  badge JSON to `<path>`. Green when the run is clean; red with a count when findings
+  at the current `--fail-on` threshold are present. Warn-only tiers (`C`, `U`, `V`)
+  do not turn the badge red. Serve the file from any static host and embed it with:
+  `https://img.shields.io/endpoint?url=<raw-url-to-badge.json>`.
+- **`--no-doi-probe`** — skip the best-effort `HEAD https://doi.org/<doi>` probe that
+  ghostcite performs when a DOI is absent from CrossRef. The probe distinguishes
+  "dead/fabricated DOI" from "resolves but not in CrossRef" and refines the Tier U
+  message; pass `--no-doi-probe` for fully offline or air-gapped runs.
 - **`--max-rps <n>`** — cap outbound requests per second. ghostcite already
   self-throttles to CrossRef's advertised rate limit (read from the response
   headers); `--max-rps` lets you be _more_ conservative (the stricter of the two wins).
@@ -129,15 +143,16 @@ with the project URL, never a personal email).
 <details>
 <summary><b>Severity tiers, input formats &amp; exit codes</b></summary>
 
-| Tier   | Meaning                                                                | Fails CI?                       |
-| ------ | ---------------------------------------------------------------------- | ------------------------------- |
-| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors     | Yes                             |
-| **T**  | title-mismatch — DOI resolves to a different paper (identifier hijack) | Yes                             |
-| **B**  | year-mismatch — author matches, claimed year differs                   | Yes                             |
-| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger)  | No (info)                       |
-| **R**  | retraction / expression-of-concern per CrossRef                        | Yes (fires regardless of A/B/C) |
-| **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive       | No (warn)                       |
-| **OK** | first author + year match                                              | —                               |
+| Tier   | Meaning                                                                                             | Fails CI?                       |
+| ------ | --------------------------------------------------------------------------------------------------- | ------------------------------- |
+| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors                                  | Yes                             |
+| **T**  | title-mismatch — DOI resolves to a different paper (identifier hijack)                              | Yes                             |
+| **B**  | year-mismatch — author matches, claimed year differs                                                | Yes                             |
+| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger)                               | No (info)                       |
+| **R**  | retraction / expression-of-concern per CrossRef                                                     | Yes (fires regardless of A/B/C) |
+| **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive                                    | No (warn)                       |
+| **V**  | venue-mismatch — cited journal/venue differs from CrossRef's record (opt-in, abbreviation-tolerant) | No (info, opt-in)               |
+| **OK** | first author + year match                                                                           | —                               |
 
 Tier **T** catches "identifier hijacking": the DOI resolves, but to a _different
 paper_ than the one cited — even when the claimed author coincidentally matches the
@@ -241,7 +256,8 @@ heavier, GPU-bound concern best served by
 [**sciwrite-lint**](#related-work--faq). ghostcite deliberately stays on the
 deterministic, no-GPU side so it can gate every commit and CI run in seconds. It
 does no auto-fixing and no citation-style linting. CrossRef is the source of truth;
-`--cross-check pubmed` adds PubMed as an optional second opinion.
+`--cross-check pubmed` adds PubMed as an optional second opinion, and
+`--cross-check pubmed,openalex` layers in OpenAlex as well.
 
 - CrossRef stores particle surnames inconsistently (`van der Berg` vs `Berg`), so a
   correctly-cited prefixed surname can rarely produce a Tier A false positive.
@@ -283,9 +299,13 @@ bring-your-own backend you configure.
 **Will it hit rate limits?** It self-throttles to CrossRef's advertised rate limit
 (read from the live response headers); use `--max-rps` to be more conservative.
 
-**Does it catch fabricated DOIs?** Indirectly — a DOI that 404s at CrossRef
-surfaces as Tier U. The core check is byline-vs-DOI _consistency_, so it catches the
-common case of a real DOI attached to the wrong citation.
+**Does it catch fabricated DOIs?** Indirectly — a DOI absent from CrossRef surfaces
+as Tier U. ghostcite performs a best-effort `HEAD https://doi.org/<doi>` probe to
+distinguish "dead/fabricated DOI" (does not resolve at all) from "resolves but not
+indexed in CrossRef" and surfaces that distinction in the Tier U message. Pass
+`--no-doi-probe` to skip the probe for fully offline or air-gapped runs. The core
+check is byline-vs-DOI _consistency_, so it catches the common case of a real DOI
+attached to the wrong citation.
 
 </details>
 
