@@ -37,6 +37,8 @@ class CanonicalRecord:
     retracted: bool = False
     eoc: bool = False  # expression of concern
     low_confidence: bool = False  # from bibliographic search
+    is_preprint: bool = False
+    has_preprint_relation: bool = False
     abstract: str | None = None  # plain-text abstract, when a source provides one
 
 

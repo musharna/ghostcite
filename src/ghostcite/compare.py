@@ -395,6 +395,18 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
             ]
         # True match → check year.
         if citation.claimed_year and canonical.year and citation.claimed_year != canonical.year:
+            if canonical.is_preprint or canonical.has_preprint_relation:
+                # Preprint/published variants legitimately differ in year — downgrade to a
+                # non-failing informational finding instead of a CI-failing Tier B.
+                return [
+                    Finding(
+                        citation,
+                        Tier.COSMETIC,
+                        canonical,
+                        f"cited year {citation.claimed_year} vs CrossRef {canonical.year}: "
+                        f"this DOI is a preprint / has a published variant — not flagged{conf}",
+                    )
+                ]
             return [
                 Finding(
                     citation,

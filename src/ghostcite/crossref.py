@@ -58,6 +58,16 @@ def _retraction_flags(message: dict) -> tuple[bool, bool]:
     return retracted, eoc
 
 
+def _preprint_flags(message: dict) -> tuple[bool, bool]:
+    subtype = str(message.get("subtype", "")).lower()
+    is_preprint = subtype == "preprint" or (
+        str(message.get("type", "")).lower() == "posted-content" and subtype in ("", "preprint")
+    )
+    relation = message.get("relation") or {}
+    has_rel = any("preprint" in k.lower() for k in relation)
+    return is_preprint, has_rel
+
+
 def _year(message: dict) -> int | None:
     for key in ("published", "published-print", "published-online", "issued"):
         parts = (message.get(key) or {}).get("date-parts") or []
@@ -68,6 +78,7 @@ def _year(message: dict) -> int | None:
 
 def _record_from_message(message: dict, low_confidence: bool = False) -> CanonicalRecord:
     retracted, eoc = _retraction_flags(message)
+    is_preprint, has_preprint_relation = _preprint_flags(message)
     authors = [a.get("family", "").strip() for a in message.get("author") or [] if a.get("family")]
     title = (message.get("title") or [None])[0]
     journal = (message.get("container-title") or [None])[0]
@@ -80,6 +91,8 @@ def _record_from_message(message: dict, low_confidence: bool = False) -> Canonic
         retracted=retracted,
         eoc=eoc,
         low_confidence=low_confidence,
+        is_preprint=is_preprint,
+        has_preprint_relation=has_preprint_relation,
         abstract=_strip_jats(message.get("abstract")),
     )
 
