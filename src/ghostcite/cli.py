@@ -104,6 +104,11 @@ def _parse_args(argv):
         action="store_true",
         help="skip the doi.org HEAD probe used to refine unresolvable-DOI messages",
     )
+    p.add_argument(
+        "--badge",
+        default=None,
+        help="write a shields.io endpoint badge JSON (citation health) to this path",
+    )
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
         p.error("--max-rps must be > 0")
@@ -158,12 +163,14 @@ def _fetch_retractions_main(argv) -> int:
     return 0
 
 
-def _exit_code(fail_on: str, findings: list[Finding]) -> int:
+def _fail_tiers(fail_on: str) -> set[Tier]:
     if fail_on.strip().lower() == "none":
-        return 0
-    fail_tiers = {
-        _TIER_BY_NAME[n.strip()] for n in fail_on.split(",") if n.strip() in _TIER_BY_NAME
-    }
+        return set()
+    return {_TIER_BY_NAME[n.strip()] for n in fail_on.split(",") if n.strip() in _TIER_BY_NAME}
+
+
+def _exit_code(fail_on: str, findings: list[Finding]) -> int:
+    fail_tiers = _fail_tiers(fail_on)
     return 1 if any(f.tier in fail_tiers for f in findings) else 0
 
 
@@ -325,5 +332,14 @@ def main(argv=None) -> int:
         )
     )
     print(out)
+
+    if args.badge:
+        from ghostcite.report import render_badge
+
+        try:
+            with open(args.badge, "w", encoding="utf-8") as bf:
+                bf.write(render_badge(findings, _fail_tiers(args.fail_on)))
+        except OSError as e:
+            print(f"ghostcite: could not write badge to {args.badge}: {e}", file=sys.stderr)
 
     return _exit_code(args.fail_on, findings)

@@ -81,6 +81,23 @@ def render_text(
     return "\n".join(lines)
 
 
+def render_badge(findings: list[Finding], fail_on_tiers: set[Tier]) -> str:
+    """Serialize a shields.io endpoint badge JSON keyed to the active --fail-on tiers.
+
+    Green/clean when no finding is at/above the fail threshold (matches the exit code);
+    red/N-issue(s) otherwise. Warn-only tiers (V/U/C) do not turn it red.
+    """
+    failing = [f for f in findings if f.tier in fail_on_tiers]
+    n = len(failing)
+    if n == 0:
+        message, color = "clean", "brightgreen"
+    else:
+        message, color = (f"{n} issue" if n == 1 else f"{n} issues"), "red"
+    return json.dumps(
+        {"schemaVersion": 1, "label": "ghostcite", "message": message, "color": color}
+    )
+
+
 def render_json(
     findings: list[Finding],
     total: int,
