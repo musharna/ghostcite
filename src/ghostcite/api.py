@@ -84,12 +84,22 @@ def _process_citation(
     client: CrossRefClient,
     retraction_db: RetractionDB | None = None,
     cache: DoiCache | None = None,
+    probe_doi: bool = False,
 ) -> tuple[list[Finding], CanonicalRecord | None]:
     """Resolve one citation and return (findings, canonical_record).
 
     Handles both the DOI path and the bibliographic-search fallback, plus
     retraction DB override synthesis -- exactly the logic from cli.py inner
     loop, factored out so both check_text and cli.main share one implementation.
+
+    Parameters
+    ----------
+    probe_doi:
+        When True and the DOI is not found in CrossRef, perform a best-effort
+        HEAD on https://doi.org/<doi> to distinguish a dead/fabricated DOI from
+        one that simply isn't in CrossRef.  Network errors fall back to the
+        generic "DOI not found / unresolvable" message.  Has no effect when
+        the DOI resolves normally or when no DOI is present.
 
     Returns
     -------
@@ -104,15 +114,27 @@ def _process_citation(
             citation.claimed_first_author, citation.claimed_year, citation.claimed_title
         )
 
+    unresolved_reason = None
+    if rec is None and citation.doi and probe_doi:
+        resolves = client.doi_resolves(citation.doi)
+        if resolves is True:
+            unresolved_reason = "DOI not in CrossRef but resolves at doi.org (registered elsewhere)"
+        elif resolves is False:
+            unresolved_reason = "DOI does not resolve (dead or fabricated DOI)"
+
     if retraction_db is not None:
         doi_for_lookup = citation.doi or (rec.doi if rec else "") or ""
         override = retraction_db.lookup(doi_for_lookup)
         retraction_source = retraction_db.source_label
         findings = evaluate(
-            citation, rec, retraction_source=retraction_source, retraction_override=override
+            citation,
+            rec,
+            retraction_source=retraction_source,
+            retraction_override=override,
+            unresolved_reason=unresolved_reason,
         )
     else:
-        findings = evaluate(citation, rec)
+        findings = evaluate(citation, rec, unresolved_reason=unresolved_reason)
 
     return findings, rec
 

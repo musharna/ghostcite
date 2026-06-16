@@ -126,6 +126,19 @@ class CrossRefClient:
             self._pacer.update_from_headers(r.headers)
         return r
 
+    def doi_resolves(self, doi: str) -> bool | None:
+        """Best-effort HEAD on https://doi.org/<doi> to distinguish a dead/fabricated DOI from
+        one that simply isn't in CrossRef. Returns True (resolves), False (404/410), or None
+        (network error / timeout — caller falls back to the generic message). Never raises."""
+        try:
+            self._pacer.wait()
+            r = self._client.head(f"https://doi.org/{doi}", follow_redirects=True)
+            if r.status_code in (404, 410):
+                return False
+            return 200 <= r.status_code < 400
+        except Exception:
+            return None
+
     def lookup_by_doi(self, doi: str, *, cache: DoiCache | None = None) -> CanonicalRecord | None:
         """Look up a DOI against CrossRef, with optional read-through caching.
 

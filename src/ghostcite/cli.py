@@ -99,6 +99,11 @@ def _parse_args(argv):
         default=None,
         help="path to a JSON list of {claim, doi} to claim-support check (semantic)",
     )
+    p.add_argument(
+        "--no-doi-probe",
+        action="store_true",
+        help="skip the doi.org HEAD probe used to refine unresolvable-DOI messages",
+    )
     args = p.parse_args(argv)
     if args.max_rps is not None and args.max_rps <= 0:
         p.error("--max-rps must be > 0")
@@ -288,7 +293,9 @@ def main(argv=None) -> int:
                     )
                 )
             for c in citations:
-                cite_findings, rec = _process_citation(c, client=client, retraction_db=rdb)
+                cite_findings, rec = _process_citation(
+                    c, client=client, retraction_db=rdb, probe_doi=not args.no_doi_probe
+                )
                 if pmclient is not None:
                     if c.doi:
                         pm = pmclient.lookup_by_doi(c.doi)

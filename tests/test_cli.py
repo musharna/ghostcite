@@ -32,6 +32,9 @@ class FakeClient:
     def lookup_by_doi(self, doi, *, cache=None):
         return self.table.get(doi)
 
+    def doi_resolves(self, doi):
+        return None  # no probe in fake — falls back to generic unresolvable message
+
     def search_bibliographic(self, *a):
         return None
 

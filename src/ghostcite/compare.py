@@ -281,6 +281,7 @@ def evaluate(
     retraction_source: str = "CrossRef",
     *,
     retraction_override: tuple[bool, bool] | None = None,
+    unresolved_reason: str | None = None,
 ) -> list[Finding]:
     """Compare a claimed citation against the canonical record. Empty list = OK.
 
@@ -312,7 +313,14 @@ def evaluate(
     if canonical is None:
         # No CrossRef record: the byline is genuinely unverifiable. The retraction
         # (if any) is already reported above.
-        findings.append(Finding(citation, Tier.UNRESOLVABLE, None, "DOI not found / unresolvable"))
+        findings.append(
+            Finding(
+                citation,
+                Tier.UNRESOLVABLE,
+                None,
+                unresolved_reason or "DOI not found / unresolvable",
+            )
+        )
         return findings
 
     # Author/year only when the input actually claimed an author (not DOI-list mode).
