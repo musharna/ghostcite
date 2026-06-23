@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from ghostcite.crossref import _record_from_message
 
 
