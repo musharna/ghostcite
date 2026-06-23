@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from ghostcite.compare import evaluate, venue_mismatch
 from ghostcite.models import CanonicalRecord, Citation, Tier
 
