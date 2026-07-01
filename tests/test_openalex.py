@@ -149,6 +149,18 @@ def test_lookup_by_doi_500_raises(httpx_mock):
             oa.lookup_by_doi(_DOI)
 
 
+def test_doi_with_fragment_is_url_encoded(httpx_mock):
+    # '#' in a DOI must be percent-encoded, not sent raw (which would truncate
+    # the identifier at the fragment boundary).
+    encoded = f"{_BASE}/works/doi:10.1234/abc%23frag"
+    httpx_mock.add_response(url=encoded, json=_work_payload())
+    with OpenAlexClient() as oa:
+        oa.lookup_by_doi("10.1234/abc#frag")
+    requested = str(httpx_mock.get_requests()[0].url)
+    assert "%23frag" in requested
+    assert "#frag" not in requested
+
+
 # ---------------------------------------------------------------------------
 # cross_check_openalex — reconciliation logic (mirrors test_cross_check.py)
 # ---------------------------------------------------------------------------

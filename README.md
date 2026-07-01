@@ -190,7 +190,7 @@ Drop in the composite **GitHub Action**:
 - uses: musharna/ghostcite@v1
   with:
     paths: paper/refs.bib
-    fail-on: "author,year,retraction"
+    fail-on: "author,title,year,retraction"
 ```
 
 …or the **[pre-commit](https://pre-commit.com/) hook**:
@@ -198,10 +198,11 @@ Drop in the composite **GitHub Action**:
 ```yaml
 repos:
   - repo: https://github.com/musharna/ghostcite
-    rev: v0.1.0
+    rev: v0.4.0
     hooks:
       - id: ghostcite
-        args: [paper/references.bib, --fail-on, "author,year,retraction"]
+        # Staged .bib/.md files are appended automatically; args carries flags only.
+        args: [--fail-on, "author,title,year,retraction"]
 ```
 
 Either way, a finding at or above the `--fail-on` threshold returns a non-zero

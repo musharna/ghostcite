@@ -141,7 +141,7 @@ def test_claims_requires_backend_config(tmp_path, capsys):
 
 
 def test_semantic_on_bib_warns_and_runs_core(tmp_path, capsys, monkeypatch):
-    from tests.test_cli import FakeClient  # reuse the existing fake
+    from tests.conftest import FakeClient  # shared fake (see tests/conftest.py)
 
     monkeypatch.setattr(cli, "CrossRefClient", FakeClient)
     f = tmp_path / "r.bib"

@@ -40,6 +40,8 @@ def _colorize(glyph: str, tier: Tier, enabled: bool) -> str:
 
 def _finding_line(f: Finding, color: bool) -> list[str]:
     loc = f"L{f.citation.source_line}" if f.citation.source_line else "—"
+    if f.citation.source_file:
+        loc = f"{f.citation.source_file}:{loc}"
     who = f.citation.claimed_first_author or f.citation.doi or "?"
     yr = f"({f.citation.claimed_year})" if f.citation.claimed_year else ""
     doi = f"  [{f.citation.doi}]" if f.citation.doi else ""
@@ -107,6 +109,7 @@ def render_json(
 ) -> str:
     findings = [f for f in findings if f.tier is not Tier.OK]
     payload = {
+        "schema_version": 1,
         "summary": {
             "total": total,
             "with_doi": with_doi,
@@ -117,6 +120,7 @@ def render_json(
             {
                 "tier": f.tier.value,
                 "deterministic": f.deterministic,
+                "file": f.citation.source_file,
                 "line": f.citation.source_line,
                 "claimed_author": f.citation.claimed_first_author,
                 "claimed_year": f.citation.claimed_year,

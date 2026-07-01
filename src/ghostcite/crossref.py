@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 import httpx
 
@@ -132,7 +133,7 @@ class CrossRefClient:
         (network error / timeout — caller falls back to the generic message). Never raises."""
         try:
             self._pacer.wait()
-            r = self._client.head(f"https://doi.org/{doi}", follow_redirects=True)
+            r = self._client.head(f"https://doi.org/{quote(doi, safe='/')}", follow_redirects=True)
             if r.status_code in (404, 410):
                 return False
             return 200 <= r.status_code < 400
@@ -161,7 +162,7 @@ class CrossRefClient:
                 # cached may be None (known 404) or a CanonicalRecord
                 return cached  # type: ignore[return-value]
 
-        r = self._get(f"{_BASE}/works/{doi}")
+        r = self._get(f"{_BASE}/works/{quote(doi, safe='/')}")
         if r.status_code == 404:
             if cache is not None:
                 cache.put(doi, None)

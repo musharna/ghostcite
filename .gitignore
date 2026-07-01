@@ -12,3 +12,6 @@ uv.lock
 
 # local dev artifacts (design spec + implementation plan) — not shipped publicly
 docs/
+
+# Claude Code session state / worktrees — never ship in the sdist
+.claude/

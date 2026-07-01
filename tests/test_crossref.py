@@ -50,6 +50,18 @@ def test_lookup_retries_once_on_503(httpx_mock):
     assert rec.year == 2024
 
 
+def test_doi_with_fragment_is_url_encoded(httpx_mock):
+    # A DOI containing '#' must be percent-encoded, or the fragment would be
+    # stripped and a *different* identifier silently queried.
+    encoded = "https://api.crossref.org/works/10.1234/abc%23frag"
+    httpx_mock.add_response(url=encoded, json=WORK)
+    with CrossRefClient() as c:
+        c.lookup_by_doi("10.1234/abc#frag")
+    requested = str(httpx_mock.get_requests()[0].url)
+    assert "%23frag" in requested
+    assert "#frag" not in requested
+
+
 def test_retraction_flags_from_relation():
     msg = {"relation": {"is-retracted-by": [{"id": "10.1/notice"}]}}
     assert _retraction_flags(msg) == (True, False)

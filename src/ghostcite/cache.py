@@ -142,6 +142,8 @@ class DoiCache:
                 retracted=bool(raw.get("retracted", False)),
                 eoc=bool(raw.get("eoc", False)),
                 low_confidence=bool(raw.get("low_confidence", False)),
+                is_preprint=bool(raw.get("is_preprint", False)),
+                has_preprint_relation=bool(raw.get("has_preprint_relation", False)),
                 abstract=raw.get("abstract"),
             )
         except (TypeError, AttributeError):
