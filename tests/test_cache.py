@@ -49,6 +49,24 @@ class TestRoundTrip:
         assert result.eoc is False
         assert result.low_confidence is False
 
+    def test_preprint_flags_survive_round_trip(self, cache):
+        """Regression: get() must read back is_preprint/has_preprint_relation, or a
+        preprint served from a warm cache would be mis-tiered vs a cold lookup."""
+        doi = "10.1101/preprint"
+        rec = CanonicalRecord(
+            doi=doi,
+            authors=["Doe"],
+            year=2023,
+            title="A preprint",
+            is_preprint=True,
+            has_preprint_relation=True,
+        )
+        cache.put(doi, rec)
+        result = cache.get(doi)
+        assert result is not MISS and result is not None
+        assert result.is_preprint is True
+        assert result.has_preprint_relation is True
+
     def test_round_trip_none_404(self, cache):
         """Storing None (known 404) must come back as None, not MISS."""
         doi = "10.1234/notfound"

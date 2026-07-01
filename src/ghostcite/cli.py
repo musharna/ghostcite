@@ -35,13 +35,20 @@ def _parse_args(argv):
     p = argparse.ArgumentParser(
         prog="ghostcite",
         description="Catch ghost citations: cross-check claimed author/year against CrossRef.",
+        epilog=(
+            "subcommands:\n"
+            "  fetch-retractions   download the Retraction Watch snapshot for offline use "
+            "(see `ghostcite fetch-retractions --help`)"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--version", action="version", version=f"ghostcite {__version__}")
     p.add_argument(
         "file",
-        nargs="?",
+        nargs="*",
         default=None,
-        help="bibliography file (.bib, markdown refs, or DOI list), or '-' for stdin",
+        help="bibliography file(s) or directory to scan (.bib, markdown refs, or "
+        "DOI list); directories are walked for *.bib/*.md. Use '-' for stdin.",
     )
     p.add_argument("--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto")
     p.add_argument("--json", action="store_true", help="machine-readable output")
@@ -132,6 +139,17 @@ def _parse_args(argv):
                 f"valid choices are: {', '.join(sorted(_KNOWN_SOURCES))}"
             )
         args.cross_sources = parts
+    # Validate --fail-on tier names up front so a typo doesn't silently disable
+    # the CI gate (an unknown tier would otherwise drop to an empty fail-set).
+    fo = args.fail_on.strip().lower()
+    if fo != "none":
+        fo_parts = {s.strip() for s in fo.split(",") if s.strip()}
+        fo_unknown = fo_parts - set(_TIER_BY_NAME)
+        if fo_unknown:
+            p.error(
+                f"unknown --fail-on tier(s): {', '.join(sorted(fo_unknown))}; "
+                f"valid choices are: {', '.join(sorted(_TIER_BY_NAME))}, none"
+            )
     return args
 
 
@@ -181,6 +199,37 @@ def _fetch_retractions_main(argv) -> int:
         "Integrity), retrieved via Crossref Labs."
     )
     return 0
+
+
+_SCAN_SUFFIXES = (".bib", ".md", ".markdown")
+
+
+def _collect_input_files(paths: list[str]) -> list[str]:
+    """Expand positional args into an ordered, de-duplicated list of files.
+
+    A directory is walked recursively for ``*.bib``/``*.md`` (hidden directories
+    such as ``.git``/``.venv``/``.claude`` are skipped so a bare ``ghostcite .``
+    scans the project without dredging up VCS internals). A plain file is kept
+    verbatim regardless of extension (so explicit DOI-list files still work).
+    """
+    from pathlib import Path
+
+    files: list[str] = []
+    for raw in paths:
+        pth = Path(raw)
+        if pth.is_dir():
+            matches: set[Path] = set()
+            for suffix in _SCAN_SUFFIXES:
+                matches.update(pth.rglob(f"*{suffix}"))
+            for m in sorted(matches):
+                rel_parents = m.relative_to(pth).parts[:-1]
+                if any(part.startswith(".") for part in rel_parents):
+                    continue
+                files.append(str(m))
+        else:
+            files.append(str(pth))
+    # De-duplicate while preserving first-seen order (overlapping paths).
+    return list(dict.fromkeys(files))
 
 
 def _fail_tiers(fail_on: str) -> set[Tier]:
@@ -259,8 +308,9 @@ def main(argv=None) -> int:
     if args.claims:
         return _claims_main(args)
 
-    if args.file is None:
-        print("ghostcite: a bibliography file (or '-') is required", file=sys.stderr)
+    paths = args.file or []
+    if not paths:
+        print("ghostcite: a bibliography file, directory, or '-' is required", file=sys.stderr)
         return 2
 
     if args.semantic:
@@ -270,32 +320,67 @@ def main(argv=None) -> int:
             file=sys.stderr,
         )
 
-    if args.file == "-":
+    citations = []
+    if "-" in paths:
+        if len(paths) != 1:
+            print("ghostcite: '-' (stdin) cannot be combined with other paths", file=sys.stderr)
+            return 2
         text = sys.stdin.read()
         if not text.strip():
             print("ghostcite: no input on stdin", file=sys.stderr)
             return 2
-    else:
         try:
-            with open(args.file, encoding="utf-8") as fh:
-                text = fh.read()
-        except OSError as e:
-            print(f"ghostcite: cannot read {args.file}: {e}", file=sys.stderr)
+            citations = parse(text, fmt=args.format)
+        except ValueError as e:
+            print(f"ghostcite: {e}", file=sys.stderr)
             return 2
-
-    try:
-        citations = parse(text, fmt=args.format)
-    except ValueError as e:
-        print(f"ghostcite: {e}", file=sys.stderr)
-        return 2
+    else:
+        files = _collect_input_files(paths)
+        if not files:
+            print(
+                "ghostcite: no .bib/.md files found under the given path(s)",
+                file=sys.stderr,
+            )
+            return 0
+        tag_source = len(files) > 1
+        for fp in files:
+            try:
+                with open(fp, encoding="utf-8") as fh:
+                    text = fh.read()
+            except OSError as e:
+                print(f"ghostcite: cannot read {fp}: {e}", file=sys.stderr)
+                return 2
+            try:
+                file_cites = parse(text, fmt=args.format)
+            except ValueError as e:
+                print(f"ghostcite: {fp}: {e}", file=sys.stderr)
+                return 2
+            if tag_source:
+                for c in file_cites:
+                    c.source_file = fp
+            citations.extend(file_cites)
 
     color = False if args.json else _want_color(args.color)
     with_doi = sum(1 for c in citations if c.doi)
     if args.dry_run:
-        print(
-            f"ghostcite: would check {len(citations)} entries "
-            f"({with_doi} via DOI, {len(citations) - with_doi} via search)."
-        )
+        if args.json:
+            import json as _json
+
+            print(
+                _json.dumps(
+                    {
+                        "dry_run": True,
+                        "total": len(citations),
+                        "with_doi": with_doi,
+                        "without_doi": len(citations) - with_doi,
+                    }
+                )
+            )
+        else:
+            print(
+                f"ghostcite: would check {len(citations)} entries "
+                f"({with_doi} via DOI, {len(citations) - with_doi} via search)."
+            )
         return 0
 
     try:

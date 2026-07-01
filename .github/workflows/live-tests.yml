@@ -29,4 +29,8 @@ jobs:
 
       - name: Live CrossRef/PubMed probes
         continue-on-error: true
+        env:
+          # Opt the env-gated live tests (OpenAlex, CrossRef abstract) into the
+          # weekly run. Semantic-backend tests still skip (need a running backend).
+          GHOSTCITE_LIVE: "1"
         run: uv run --extra dev pytest -m live

@@ -6,37 +6,7 @@ import pytest
 
 from ghostcite import cli
 from ghostcite.models import CanonicalRecord
-
-
-class FakeClient:
-    """Stand-in for CrossRefClient: maps DOI → CanonicalRecord."""
-
-    table = {
-        "10.3390/plants13060869": CanonicalRecord(
-            doi="10.3390/plants13060869",
-            authors=["Chen"],
-            year=2024,
-            title="Integrated Transcriptome and Proteome Analysis",
-        ),
-    }
-
-    def __init__(self, *a, **kw):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return None
-
-    def lookup_by_doi(self, doi, *, cache=None):
-        return self.table.get(doi)
-
-    def doi_resolves(self, doi):
-        return None  # no probe in fake — falls back to generic unresolvable message
-
-    def search_bibliographic(self, *a):
-        return None
+from tests.conftest import FakeClient
 
 
 @pytest.fixture(autouse=True)
@@ -138,6 +108,57 @@ def test_stdin_doi_format_honored(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "would check 1 entries" in out
     assert "1 via DOI" in out
+
+
+def test_fail_on_unknown_tier_exits_2(tmp_path):
+    # A typo in --fail-on must error at parse time, not silently disable the gate.
+    f = _write(tmp_path, "@article{k, author={Chen, M}, year={2024}, doi={10.1/x}}")
+    with pytest.raises(SystemExit) as exc:
+        cli.main([f, "--fail-on", "retractions"])  # note the trailing 's'
+    assert exc.value.code == 2
+
+
+def test_json_dry_run_emits_valid_json(tmp_path, capsys):
+    import json as _json
+
+    f = _write(tmp_path, "@article{k, author={Li, X}, year={2024}, doi={10.3390/plants13060869}}")
+    assert cli.main([f, "--json", "--dry-run"]) == 0
+    payload = _json.loads(capsys.readouterr().out)  # must parse, not raise
+    assert payload["dry_run"] is True
+    assert payload["total"] == 1
+    assert payload["with_doi"] == 1
+
+
+def test_directory_is_walked_for_bib_and_md(tmp_path, capsys):
+    (tmp_path / "a.bib").write_text("@article{k, author={Li, X}, year={2024}, doi={10.1/a}}")
+    (tmp_path / "b.md").write_text("- Smith (2020). Something. 10.1/b")
+    # A file under a hidden dir must be skipped (not dredged from .git-like trees).
+    hidden = tmp_path / ".hidden"
+    hidden.mkdir()
+    (hidden / "c.bib").write_text("@article{k, author={Zzz, Q}, year={2019}, doi={10.1/c}}")
+    assert cli.main([str(tmp_path), "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "would check 2 entries" in out  # a.bib + b.md, NOT the hidden c.bib
+
+
+def test_multi_file_findings_are_attributed_to_source_file(tmp_path, capsys):
+    f1 = tmp_path / "one.bib"
+    f1.write_text(
+        "@article{k, author={Li, X}, year={2024}, "
+        "title={Integrated Transcriptome and Proteome Analysis}, doi={10.3390/plants13060869}}"
+    )
+    f2 = tmp_path / "two.bib"
+    f2.write_text("@article{k, author={Doe, J}, year={2020}, doi={10.1/none}}")
+    cli.main([str(f1), str(f2), "--json"])
+    out = capsys.readouterr().out
+    assert '"file": ' in out
+    assert "one.bib" in out
+
+
+def test_stdin_dash_rejected_with_other_paths(tmp_path, capsys):
+    f = _write(tmp_path, "@article{k, author={Chen, M}, year={2024}, doi={10.1/x}}")
+    assert cli.main(["-", f]) == 2
+    assert "cannot be combined" in capsys.readouterr().err
 
 
 def test_python_m_entrypoint():

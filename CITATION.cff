@@ -14,8 +14,8 @@ authors:
 repository-code: "https://github.com/musharna/ghostcite"
 url: "https://github.com/musharna/ghostcite"
 license: MIT
-version: 0.3.0
-date-released: "2026-06-08"
+version: 0.4.0
+date-released: "2026-06-16"
 keywords:
   - citations
   - crossref

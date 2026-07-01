@@ -13,6 +13,10 @@ import pytest
 
 from ghostcite.crossref import CrossRefClient
 
+# These hit real network/backends; select them with `pytest -m live` (the weekly
+# live-tests workflow). Each test still skips unless its GHOSTCITE_LIVE* env is set.
+pytestmark = pytest.mark.live
+
 
 @pytest.mark.skipif(
     os.environ.get("GHOSTCITE_LIVE") != "1",

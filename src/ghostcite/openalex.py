@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import quote
 
 import httpx
 
@@ -80,7 +81,7 @@ class OpenAlexClient:
 
     def lookup_by_doi(self, doi: str) -> OpenAlexRecord | None:
         """Resolve a DOI via OpenAlex /works/doi:<doi>. Returns None on 404."""
-        url = f"{_BASE}/works/doi:{doi}"
+        url = f"{_BASE}/works/doi:{quote(doi, safe='/')}"
         params: dict[str, str] = {}
         if self._mailto:
             params["mailto"] = self._mailto

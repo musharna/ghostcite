@@ -25,6 +25,7 @@ class Citation:
     claimed_year: int | None = None
     claimed_title: str | None = None
     claimed_journal: str | None = None
+    source_file: str | None = None  # set when >1 file is scanned (dir/multi-path)
 
 
 @dataclass

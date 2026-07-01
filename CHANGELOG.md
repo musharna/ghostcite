@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Multi-file and directory input: the CLI now accepts one or more paths, and a
+  directory is walked recursively for `*.bib`/`*.md` (hidden dirs like `.git`
+  skipped). This makes the GitHub Action's default `paths: .` work as documented.
+  When more than one file is scanned, findings are attributed with their filename
+  (text `path:Lnn`, JSON `file` field). The pre-commit hook now passes staged
+  filenames automatically (`pass_filenames: true`).
+
+### Fixed
+
+- `--fail-on` now errors on an unknown tier name instead of silently dropping it
+  (a typo like `--fail-on retractions` had turned the CI gate into a no-op).
+- DOI cache round-trip no longer drops the preprint flags (`is_preprint`,
+  `has_preprint_relation`); a preprint served from a warm cache is now downgraded
+  identically to a cold lookup (restores determinism).
+- Markdown/DOI-list entries (which carry no parsed title) no longer emit a
+  misleading "possibly wrong DOI" verdict on an author mismatch; they fall back to
+  the neutral "CrossRef first author is …" message.
+- DOIs are URL-encoded before being spliced into CrossRef/OpenAlex/`doi.org` request
+  URLs, so a DOI containing `#` (or other URL-significant characters) is no longer
+  silently truncated into a different query.
+- `--json --dry-run` now emits valid JSON instead of a plain-text line.
+
+### Packaging / CI
+
+- Release workflow gains a test gate (`build` needs `test`), so a tag pushed on a
+  red tree cannot publish. Action inputs are passed via `env:` (no shell
+  interpolation), the Action's `pip install` is pinned, and the `v1` major tag is
+  force-moved to each release commit.
+- `.claude/` is git-ignored and excluded from the sdist (was leaking local
+  worktrees into `uv build` artifacts). Added the `Typing :: Typed` classifier.
+- `test_semantic_live.py` gains the `live` marker so the weekly live-tests
+  workflow actually collects it (and that workflow now sets `GHOSTCITE_LIVE=1`).
+
 ## [0.4.0] - 2026-06-16
 
 ### Added

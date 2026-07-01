@@ -4,7 +4,7 @@
   entry: ghostcite
   language: python
   files: \.(bib|md)$
-  # ghostcite's CLI takes exactly one positional bibliography file, but pre-commit
-  # would auto-append every matched staged file. Disable that and have users name
-  # their file explicitly via `args:` in .pre-commit-config.yaml.
-  pass_filenames: false
+  # ghostcite's CLI accepts multiple positional files, so let pre-commit append the
+  # matched staged .bib/.md files automatically. Put flags (e.g. --fail-on) in
+  # `args:` in .pre-commit-config.yaml; the filenames are added after them.
+  pass_filenames: true

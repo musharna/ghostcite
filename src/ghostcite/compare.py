@@ -439,7 +439,12 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
         ]
 
     # Not in author list at all — wrong author, or wrong DOI entirely.
-    if not title_similar(citation.claimed_title, canonical.title):
+    # The "possibly wrong DOI" verdict leans on a title disagreement; only assert
+    # it when a claimed title was actually parsed (markdown/DOI-list entries carry
+    # none, so title_similar(None, …) is vacuously False and must not be trusted).
+    if citation.claimed_title is not None and not title_similar(
+        citation.claimed_title, canonical.title
+    ):
         return [
             Finding(
                 citation,

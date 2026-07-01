@@ -21,6 +21,7 @@ correctly attributed and stay silent.
 
 ```text
 ghostcite: 3 entries, 3 with DOIs
+  retractions: CrossRef live
   ✗ A  L1  Li (2024)  →  DOI resolves to Chen (2024) — possibly wrong DOI  [10.3390/plants13060869]
   1 A
 ```
@@ -33,6 +34,7 @@ with no claimed author/year there is nothing to mismatch, so it reports clean:
 
 ```text
 ghostcite: 3 entries, 3 with DOIs
+  retractions: CrossRef live
   0 findings — clean
 ```
 

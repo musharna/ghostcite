@@ -10,9 +10,9 @@ inputs:
     required: false
     default: "."
   fail-on:
-    description: "Comma-separated tiers that cause a non-zero exit (author, year, retraction)."
+    description: "Comma-separated tiers that cause a non-zero exit (author, title, year, retraction)."
     required: false
-    default: "author,year,retraction"
+    default: "author,title,year,retraction"
   args:
     description: "Extra arguments passed verbatim to the ghostcite CLI."
     required: false
@@ -28,8 +28,17 @@ runs:
 
     - name: Install ghostcite
       shell: bash
-      run: pip install ghostcite
+      # Pinned for reproducibility/supply-chain safety; bumped alongside the
+      # major-tag move in release.yml so `@v1` always installs a known version.
+      run: pip install "ghostcite==0.4.0"
 
     - name: Run ghostcite
       shell: bash
-      run: ghostcite --color always --fail-on "${{ inputs.fail-on }}" ${{ inputs.args }} "${{ inputs.paths }}"
+      # Untrusted inputs are passed via env (never interpolated into the command
+      # string) so a crafted `paths`/`args` can't inject shell. PATHS/ARGS are
+      # intentionally unquoted to allow multiple space-separated values.
+      env:
+        GC_FAIL_ON: ${{ inputs.fail-on }}
+        GC_ARGS: ${{ inputs.args }}
+        GC_PATHS: ${{ inputs.paths }}
+      run: ghostcite --color always --fail-on "$GC_FAIL_ON" $GC_ARGS $GC_PATHS

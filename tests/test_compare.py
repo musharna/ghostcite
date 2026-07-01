@@ -100,6 +100,18 @@ def test_wrong_doi_annotation_when_title_diverges():
     assert "possibly wrong DOI" in findings[0].message
 
 
+def test_no_wrong_doi_verdict_without_claimed_title():
+    # Markdown/DOI-list entries carry no parsed title. An author mismatch there
+    # must NOT be reported as "possibly wrong DOI" (title_similar(None, …) is
+    # vacuously False) — it falls back to the neutral author message.
+    c = _cit(claimed_first_author="Clarke", claimed_title=None)
+    rec = _rec(authors=["Vaghefi"], title="A genome resource for Neocamarosporium betae")
+    findings = evaluate(c, rec)
+    assert findings[0].tier is Tier.AUTHOR
+    assert "possibly wrong DOI" not in findings[0].message
+    assert "CrossRef first author is Vaghefi" in findings[0].message
+
+
 def test_year_mismatch_is_tier_b_when_author_ok():
     c = _cit(claimed_first_author="Chen", claimed_year=2019)
     findings = evaluate(c, _rec(year=2024))
