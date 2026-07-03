@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from ghostcite import cli
+from ghostcite import __version__, cli
 from ghostcite.models import CanonicalRecord
 from tests.conftest import FakeClient
 
@@ -76,7 +76,7 @@ def test_version_flag_prints_and_exits_0(capsys):
     with pytest.raises(SystemExit) as exc:
         cli.main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.strip() == "ghostcite 0.4.0"
+    assert capsys.readouterr().out.strip() == f"ghostcite {__version__}"
 
 
 def test_max_rps_nonpositive_exits_2(tmp_path):
@@ -169,7 +169,7 @@ def test_python_m_entrypoint():
         text=True,
     )
     assert result.returncode == 0
-    assert "ghostcite 0.4.0" in result.stdout
+    assert f"ghostcite {__version__}" in result.stdout
 
 
 def _retracted_fake(monkeypatch):
