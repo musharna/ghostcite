@@ -6,6 +6,7 @@
 [![CI](https://github.com/musharna/ghostcite/actions/workflows/ci.yml/badge.svg)](https://github.com/musharna/ghostcite/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21636354.svg)](https://doi.org/10.5281/zenodo.21636354)
 
 **Catch ghost citations — right DOI, wrong author.**
 
