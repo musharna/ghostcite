@@ -1,0 +1,34 @@
+{
+  "upload_type": "software",
+  "title": "ghostcite: deterministic detection of ghost citations and retracted references",
+  "description": "A deterministic, no-LLM command-line tool that catches ghost citations \u2014 references whose claimed author or year does not match the canonical record for the DOI at CrossRef (and optionally PubMed) \u2014 and flags retracted or expression-of-concern works. Ships as a pre-commit hook and a GitHub Action for continuous citation integrity checking in manuscript repositories.",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Arnold, Jaret",
+      "orcid": "0009-0003-4055-5238"
+    }
+  ],
+  "keywords": [
+    "citations",
+    "crossref",
+    "pubmed",
+    "bibtex",
+    "research-integrity",
+    "doi",
+    "retraction"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/musharna/ghostcite",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://pypi.org/project/ghostcite/",
+      "relation": "isIdenticalTo",
+      "scheme": "url"
+    }
+  ],
+  "access_right": "open"
+}
