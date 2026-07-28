@@ -6,6 +6,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-28
+
+### Added
+
+- `CITATION.cff` now carries an ORCID and is validated against the CFF 1.2.0 schema, so
+  GitHub renders a **Cite this repository** panel and Zenodo can mint a DOI from it.
+- `.zenodo.json` pins the metadata Zenodo uses for the DOI record (title, description,
+  creators, licence, keywords) rather than letting it infer them from the repository.
+
+### Fixed
+
+- `CITATION.cff` claimed `0.4.0` while the project shipped `0.5.0`. Citation metadata is
+  machine-readable and ends up in other people's bibliographies, so a stale version there
+  is worse than none.
+- A new `citation` CI job fails any change where `CITATION.cff`'s version disagrees with
+  `pyproject.toml`, which is how the drift above went unnoticed. It mirrors the existing
+  "tag matches pyproject version" release gate, one layer earlier.
+
 ## [0.5.0] - 2026-07-03
 
 ### Added
