@@ -95,7 +95,7 @@ def _between(sep: str):
 def test_text_between_entries_does_not_swallow_the_next_entry():
     """The bug is not about `%`. ANY non-@ text between entries triggered it."""
     for sep in (
-        "",                       # control: nothing between them
+        "",  # control: nothing between them
         "% a plain comment\n",
         "%% doubled comment marker\n",
         "some stray prose\n",
