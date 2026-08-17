@@ -1,6 +1,6 @@
 [project]
 name = "ghostcite"
-version = "0.5.1"
+version = "0.5.2"
 description = "Catch ghost citations — cross-check a bibliography's claimed author/year against CrossRef"
 readme = "README.md"
 requires-python = ">=3.9"

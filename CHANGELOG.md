@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-08-17
+
 ### Fixed
 
 - **BibTeX entries following any non-`@` text were silently merged into the

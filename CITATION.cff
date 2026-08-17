@@ -23,8 +23,8 @@ identifiers:
 repository-code: "https://github.com/musharna/ghostcite"
 url: "https://pypi.org/project/ghostcite/"
 license: MIT
-version: 0.5.1
-date-released: "2026-07-28"
+version: 0.5.2
+date-released: "2026-08-17"
 keywords:
   - citations
   - crossref
