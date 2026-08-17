@@ -6,6 +6,33 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **BibTeX entries following any non-`@` text were silently merged into the
+  previous entry, and the survivor carried the WRONG metadata.** Entry extent was
+  decided by a lookahead requiring the closing brace to be followed by `@` or
+  end-of-input, so a `%` comment, a stray note, a blank-line remark or a
+  `\section{}` between two entries made the pattern run on to a later brace and
+  swallow the next entry. The merged `Citation` kept the FIRST entry's key and
+  raw line while taking the SECOND entry's `doi`, `author` and `year` — later
+  fields win when the body of two entries is parsed as one. A tool whose purpose
+  is catching wrong-author-for-right-DOI was therefore capable of manufacturing
+  exactly that pairing, and it reported `0 findings — clean` while doing so:
+  neither the printed count, the findings list, nor the exit status was a
+  function of how many entries were actually read.
+
+  Found on a real 17-entry bibliography that reported `16 entries, 16 with DOIs`
+  with an explanatory comment block between the tenth and eleventh entries. Only
+  text beginning with `@` was safe, by accident, which is why `@comment{}` blocks
+  never triggered it.
+
+  Entry extent is now determined by brace matching — a property of the entry
+  itself — so no amount of surrounding text can change where an entry ends.
+  `@comment` / `@string` / `@preamble` are now skipped explicitly rather than
+  incidentally (they were passed over only because they happen to contain no
+  comma), and an unterminated final entry is parsed to end-of-input rather than
+  dropped.
+
 ## [0.5.0] - 2026-07-03
 
 ### Added
