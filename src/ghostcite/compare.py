@@ -401,8 +401,14 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
                     f'diacritic/spelling: CrossRef has "{first_raw}"{conf}',
                 )
             ]
-        # True match → check year.
-        if citation.claimed_year and canonical.year and citation.claimed_year != canonical.year:
+        # True match → check year. An online-first article carries two real
+        # publication years (online, then print) and is legitimately cited by
+        # either, so the claim is measured against EVERY year CrossRef holds --
+        # not just the earliest. Comparing to the earliest alone flagged
+        # correct bibliographies: featureCounts is cited everywhere as Liao 2014
+        # (print) while CrossRef's `published` says 2013 (online).
+        accepted = canonical.years or ((canonical.year,) if canonical.year else ())
+        if citation.claimed_year and accepted and citation.claimed_year not in accepted:
             if canonical.is_preprint or canonical.has_preprint_relation:
                 # Preprint/published variants legitimately differ in year — downgrade to a
                 # non-failing informational finding instead of a CI-failing Tier B.
@@ -415,12 +421,14 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
                         f"this DOI is a preprint / has a published variant — not flagged{conf}",
                     )
                 ]
+            shown = "/".join(str(y) for y in accepted) if len(accepted) > 1 else str(canonical.year)
+            label = "CrossRef years are" if len(accepted) > 1 else "CrossRef year is"
             return [
                 Finding(
                     citation,
                     Tier.YEAR,
                     canonical,
-                    f"CrossRef year is {canonical.year}{conf}",
+                    f"{label} {shown}{conf}",
                 )
             ]
         return []
