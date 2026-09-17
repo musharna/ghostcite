@@ -33,6 +33,11 @@ class CanonicalRecord:
     doi: str | None
     authors: list[str] = field(default_factory=list)  # family names, in order
     year: int | None = None
+    # Every distinct year CrossRef carries for this DOI, earliest first. An
+    # online-first article has two (online, then print) and is legitimately cited
+    # by either; `year` is the earliest, kept for display, and a claimed year is a
+    # mismatch only when it matches NONE of these.
+    years: tuple[int, ...] = ()
     title: str | None = None
     journal: str | None = None
     retracted: bool = False

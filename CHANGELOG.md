@@ -6,6 +6,33 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-09-16
+
+### Fixed
+
+- **Online-first articles were flagged as year mismatches, so correct
+  bibliographies failed.** CrossRef carries up to four date fields and
+  `published` holds the EARLIEST of them. `_year()` returned the first field it
+  found, so for any journal that publishes online before print the canonical year
+  was the online one — and a bibliography using the print year, which is how such
+  papers are universally cited, was reported Tier B.
+
+  Two real cases, both from auditing one 25-entry bibliography: featureCounts
+  (`10.1093/bioinformatics/btt656`, online 2013-11-13, print 2014-04-01) is cited
+  everywhere as Liao et al. **2014**, and `10.1093/molbev/msu343` (online
+  2014-12-21, print 2015-03-01) as Yang et al. **2015**. Both were flagged; both
+  were right. Acting on either flag would have introduced a defect into a clean
+  bibliography — the exact opposite of this tool's purpose, and worse than a miss,
+  because a false positive costs the reader's trust in every other flag.
+
+  `CanonicalRecord` now carries `years`, every distinct year CrossRef holds for
+  the DOI, and a claimed year is a mismatch only when it matches NONE of them.
+  `year` still holds the earliest and is unchanged for display. A genuinely wrong
+  year is still Tier B (covered by a positive control in the tests), and records
+  with a single date behave exactly as before. When a mismatch is reported for a
+  record with several dates, the message now names them all
+  ("CrossRef years are 2013/2014") rather than one.
+
 ## [0.5.2] - 2026-08-17
 
 ### Fixed

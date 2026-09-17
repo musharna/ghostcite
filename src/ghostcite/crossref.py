@@ -69,12 +69,32 @@ def _preprint_flags(message: dict) -> tuple[bool, bool]:
     return is_preprint, has_rel
 
 
-def _year(message: dict) -> int | None:
-    for key in ("published", "published-print", "published-online", "issued"):
+_DATE_KEYS = ("published", "published-print", "published-online", "issued")
+
+
+def _years(message: dict) -> tuple[int, ...]:
+    """Every distinct year CrossRef carries for this record, earliest first.
+
+    An online-first article publishes twice: `published-online` in one year and
+    `published-print` in the next. Both are real publication dates and the
+    article is legitimately cited by either — in practice the print/issue year is
+    the canonical form (featureCounts is universally "Liao et al. 2014" though
+    CrossRef's `published` says 2013). Returning only the first key found made
+    every such bibliography look wrong.
+    """
+    seen: list[int] = []
+    for key in _DATE_KEYS:
         parts = (message.get(key) or {}).get("date-parts") or []
         if parts and parts[0] and parts[0][0]:
-            return int(parts[0][0])
-    return None
+            y = int(parts[0][0])
+            if y not in seen:
+                seen.append(y)
+    return tuple(sorted(seen))
+
+
+def _year(message: dict) -> int | None:
+    ys = _years(message)
+    return ys[0] if ys else None
 
 
 def _record_from_message(message: dict, low_confidence: bool = False) -> CanonicalRecord:
@@ -87,6 +107,7 @@ def _record_from_message(message: dict, low_confidence: bool = False) -> Canonic
         doi=(message.get("DOI") or "").lower() or None,
         authors=authors,
         year=_year(message),
+        years=_years(message),
         title=title,
         journal=journal,
         retracted=retracted,
