@@ -271,8 +271,11 @@ does no auto-fixing and no citation-style linting. CrossRef is the source of tru
 
 - CrossRef stores particle surnames inconsistently (`van der Berg` vs `Berg`), so a
   correctly-cited prefixed surname can rarely produce a Tier A false positive.
-- No-DOI entries are resolved by best-effort bibliographic search and flagged
-  low-confidence — treat those as hints, not verdicts. Most PDF reference lists
+- No-DOI entries are resolved by bibliographic search. A hit is used only when
+  it is recognisably the cited work (title, and the cited author somewhere in its
+  byline); otherwise the entry is Tier U with the closest match named. Books and
+  software manuals are mostly not in CrossRef and land there. Findings on this
+  path are marked low-confidence — hints, not verdicts. Most PDF reference lists
   print no DOIs, so a PDF run is mostly this path.
 - Manuscript input reads the reference _list_, not in-text citations; an entry
   is recognised by an author-shaped line start and a year, so a running footer

@@ -6,6 +6,34 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-18
+
+### Fixed
+
+- **Entries without a DOI were judged against whatever CrossRef returned
+  first.** The search hit was accepted unconditionally, so a hit that was a
+  different paper read as a wrong author. On the reference lists of three
+  published Systematic Biology papers 0.6.0 reported 59 author mismatches, all
+  false ("Gaut 1992" matched a philosophy book review by Belliotti that mentions
+  a Gaut); this release reports none. Three changes:
+  - a manuscript entry has no parsed title, so the query was only
+    `Gaut 1992`. The whole printed reference is now the query, which is what
+    CrossRef's `query.bibliographic` is for (it finds the right paper for 21 of one list's 26 entries; the other five are books);
+  - a hit counts only when it is the cited work: its title matches (or nearly
+    all of its title words occur in the entry) and the cited first author is
+    somewhere in its byline. A review of a book quotes the book's citation in
+    its own title; its byline does not contain the book's author. An author
+    cited out of order still passes, and is still Tier A, when the year agrees;
+  - anything else is Tier **U** naming the closest match, which is what the
+    README has always said an inconclusive search gives.
+- A rejected hit no longer lends its DOI to the retraction lookup, so an entry
+  cannot be reported retracted because an unrelated search result was.
+- Reference splitting: a byline wrapped after an initial ("... R. GUPTA, A." /
+  "LAPEDES, B. H. ...") was cut into two entries, the second reported as a
+  miscited author. An entry now cannot end before its year has appeared.
+  Publisher lines ("Cambridge University Press, New York.") stay attached to
+  their entry, and a running head between pages is not an entry.
+
 ## [0.6.0] - 2026-09-18
 
 ### Fixed

@@ -20,6 +20,11 @@ _UA = f"ghostcite/{__version__} (https://github.com/musharna/ghostcite)"
 _TAG_RE = re.compile(r"<[^>]+>")
 
 
+# CrossRef rejects very long query strings; a reference's identifying text
+# (authors, year, title) sits at its start.
+_MAX_REFERENCE_QUERY = 500
+
+
 def _strip_jats(raw: str | None) -> str | None:
     """Flatten a CrossRef JATS abstract string to plain text, or None."""
     if not raw:
@@ -195,9 +200,24 @@ class CrossRefClient:
         return record
 
     def search_bibliographic(
-        self, author: str | None, year: int | None, title: str | None
+        self,
+        author: str | None,
+        year: int | None,
+        title: str | None,
+        *,
+        reference: str | None = None,
     ) -> CanonicalRecord | None:
-        query = " ".join(str(x) for x in (author, year, title) if x).strip()
+        """Best match for a citation with no DOI. The hit is a GUESS: callers must
+        confirm it is the cited work (``compare.search_hit_is_cited_work``).
+
+        ``reference`` is the entry as printed. It is the query when no title was
+        parsed (manuscript reference lists): ``query.bibliographic`` is built for
+        whole reference strings, and "Gaut 1992" alone matches a book review.
+        """
+        if not title and reference:
+            query = " ".join(reference.split())[:_MAX_REFERENCE_QUERY]
+        else:
+            query = " ".join(str(x) for x in (author, year, title) if x).strip()
         if not query:
             return None
         r = self._get(f"{_BASE}/works", params={"query.bibliographic": query, "rows": 1})

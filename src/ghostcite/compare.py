@@ -249,6 +249,49 @@ def title_similar(a: str | None, b: str | None, threshold: float = 0.4) -> bool:
     return (inter / union) >= threshold
 
 
+def search_hit_is_cited_work(
+    citation: Citation, hit: CanonicalRecord, *, min_title_coverage: float = 0.8
+) -> bool:
+    """Is a bibliographic-search hit the work this entry cites?
+
+    A search always returns *something*. Comparing the byline against a hit that
+    is a different paper reports a correct citation as a wrong author, so the hit
+    must first be identified by evidence independent of first-author ORDER:
+
+    * title -- the claimed title is similar to the hit's; or, when no title was
+      parsed, nearly all of the hit's title words occur in the printed entry.
+    * byline -- the claimed first author appears SOMEWHERE in the hit's authors.
+      A review of a book quotes the book's whole citation in its own title and
+      passes the title test; its byline does not contain the book's author.
+
+    An author cited out of order still passes both, so that finding survives --
+    provided the year agrees as well.
+    """
+    if not hit.title:
+        return False
+    if citation.claimed_title:
+        if not title_similar(citation.claimed_title, hit.title):
+            return False
+    else:
+        hit_tokens = _title_tokens(hit.title)
+        if len(hit_tokens) < 2:
+            return False
+        covered = len(hit_tokens & _title_tokens(citation.raw)) / len(hit_tokens)
+        if covered < min_title_coverage:
+            return False
+    if citation.claimed_first_author and hit.authors:
+        claimed = _surname_key(citation.claimed_first_author)
+        names = [normalize_surname(a) for a in hit.authors]
+        if claimed not in names:
+            return False
+        # Out of first position the hit would become an author-order verdict; that
+        # needs the year to agree too, or it is more likely a different work.
+        years = hit.years or ((hit.year,) if hit.year else ())
+        if claimed != names[0] and citation.claimed_year and years:
+            return citation.claimed_year in years
+    return True
+
+
 def title_mismatch(
     claimed: str | None,
     canonical: str | None,

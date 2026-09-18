@@ -194,6 +194,8 @@ def reference_section(text: str) -> ReferenceSection:
 # and "2011." would otherwise read as marker 2011.
 _NUMBERED = re.compile(r"^[ \t]*(?:\[(\d{1,3})\]|(\d{1,3})[.)])[ \t]+(?=\S)")
 _YEAR = re.compile(r"\b(?:1[89]|20)\d{2}[a-z]?\b")
+# What stands where the year goes, including the undated forms.
+_DATED = re.compile(rf"{_YEAR.pattern}|\b(?:in press|forthcoming|n\.\s?d\.)", re.IGNORECASE)
 # An entry's first line opens with an author: optional lowercase particles, a
 # surname (any case: typeset small caps come out as "AYALA"), then either a
 # comma or whitespace and an initial / next name.
@@ -204,6 +206,21 @@ _ENTRY_START = re.compile(
 # The previous line ended an entry: sentence-terminal punctuation, a closing
 # paren/bracket, a page range or a bare page/volume number, a DOI or URL.
 _ENTRY_END = re.compile(r"(?:[.)\]]|\d+[–-]\d+\.?|:\d+[A-Za-z]?\.?|\d\.?|/\S+)\s*$")
+
+# A byline still in progress at the line break: "... R. GUPTA, A." / "... and".
+_MID_BYLINE = re.compile(r"(?:,\s*(?:[A-Z]\s*\.?)?|\band|&)\s*$")
+
+
+def _borrows_year(line: str, following: list[str]) -> bool:
+    """A yearless author-shaped line that is the TAIL of the entry above, not a
+    start: it ends the way an entry ends ("Peabody Mus. Nat. Hist. 52:3-105.",
+    "Cambridge University Press, New York.") and an entry start follows it. Its
+    only year is the next entry's. A byline line ends mid-byline instead.
+    """
+    if _YEAR.search(line) or _MID_BYLINE.search(line) or not _ENTRY_END.search(line):
+        return False
+    nxt = next((x for x in following if x.strip()), "")
+    return bool(_ENTRY_START.match(nxt))
 
 
 def _is_numbered_list(lines: list[str], numbered: list[int]) -> bool:
@@ -251,14 +268,21 @@ def split_entries(section: str, *, first_line: int = 1) -> list[tuple[int, str]]
     else:
         starts = []
         prev_ended = True
+        # An author-year entry cannot end before its own year has appeared: a
+        # byline wrapped after an initial ("... R. GUPTA, A." / "LAPEDES, B. H. ...")
+        # otherwise looks like a finished entry followed by a new one.
+        dated = True
         for i, ln in enumerate(raw_lines):
             if not ln.strip():
-                prev_ended = True
+                prev_ended = dated = True
                 continue
-            if prev_ended and _ENTRY_START.match(ln):
+            # A byline carries a comma or an initial's period; a running head neither.
+            if prev_ended and dated and _ENTRY_START.match(ln) and re.search(r"[,.]", ln):
                 window = " ".join(x.strip() for x in raw_lines[i : i + 3])
-                if _YEAR.search(window):
+                if _YEAR.search(window) and not _borrows_year(ln, raw_lines[i + 1 : i + 3]):
                     starts.append(i)
+                    dated = False
+            dated = dated or bool(_DATED.search(ln))
             prev_ended = bool(_ENTRY_END.search(ln))
     if not starts:
         return []
