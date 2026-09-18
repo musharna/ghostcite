@@ -43,6 +43,8 @@ uv tool install ghostcite      # if you use uv
 
 ```bash
 ghostcite refs.bib                                    # check a BibTeX file (or .md / DOI list)
+ghostcite manuscript.docx                             # or the reference list of a Word manuscript
+ghostcite paper.pdf                                   # or of a typeset PDF (pip install 'ghostcite[pdf]')
 ghostcite refs.bib --cross-check pubmed               # corroborate against PubMed
 ghostcite refs.bib --cross-check pubmed,openalex      # two independent sources of truth
 ghostcite refs.bib --badge badge.json                 # write a shields.io citation-health badge
@@ -52,7 +54,13 @@ cat refs.bib | ghostcite -                            # read from stdin
 ```
 
 Input format is auto-detected (BibTeX, Markdown reference list, or bare DOI list);
-override with `--format {auto,bibtex,markdown,doi}`.
+override with `--format {auto,bibtex,markdown,doi,document}`. A `.docx` or `.pdf`
+is read as a manuscript: the text after its last "References" / "Bibliography" /
+"Literature Cited" heading is split into entries (numbered lists, author-year,
+wrapped and hyphenated typeset columns, small-caps surnames), and each entry is
+checked by DOI when one is printed, else by author + year search. DOCX needs
+nothing extra; PDF needs `pypdf` (`pip install 'ghostcite[pdf]'`). A scanned PDF
+with no text layer yields no entries, and says so.
 
 **Real example** — `refs.bib` cites "Li (2024)" for a DOI CrossRef says is Chen:
 
@@ -264,7 +272,12 @@ does no auto-fixing and no citation-style linting. CrossRef is the source of tru
 - CrossRef stores particle surnames inconsistently (`van der Berg` vs `Berg`), so a
   correctly-cited prefixed surname can rarely produce a Tier A false positive.
 - No-DOI entries are resolved by best-effort bibliographic search and flagged
-  low-confidence — treat those as hints, not verdicts.
+  low-confidence — treat those as hints, not verdicts. Most PDF reference lists
+  print no DOIs, so a PDF run is mostly this path.
+- Manuscript input reads the reference _list_, not in-text citations; an entry
+  is recognised by an author-shaped line start and a year, so a running footer
+  or an editor's byline that happens to carry a year can appear as one stray
+  unresolved entry.
 - Some preprints, datasets, and protocols carry no author metadata in CrossRef and
   surface as Tier U rather than a mismatch.
 

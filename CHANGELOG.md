@@ -6,6 +6,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Manuscript input: `ghostcite paper.pdf` and `ghostcite manuscript.docx`.**
+  Until now the tool needed a bibliography the author had already exported;
+  most manuscripts never had one. A `.docx` (stdlib, no dependency) or `.pdf`
+  (`pip install 'ghostcite[pdf]'`, i.e. pypdf) is read as a manuscript: the
+  text after the last "References" / "Bibliography" / "Literature Cited" /
+  "Works Cited" heading is split into entries and each entry is checked as
+  before (DOI when printed, else author + year search). The splitter handles
+  numbered lists, author-year lists, typeset two-column PDFs with wrapped and
+  hyphenated lines, drop-cap headings ("R\nEFERENCES"), small-caps surnames
+  ("AYALA, J. A."), publisher page footers, and Word heading styles and
+  tables (the section ends at the next heading or table, so an appendix is not
+  read as references). `--format document` applies the same reader to plain
+  text; directories now also pick up `*.pdf` and `*.docx`. Checked against
+  three typeset Systematic Biology / MBE PDFs (146, 47 and 26 entries) and a
+  Word draft (17 entries, 9 with DOIs).
+
 ## [0.5.3] - 2026-09-16
 
 ### Fixed
