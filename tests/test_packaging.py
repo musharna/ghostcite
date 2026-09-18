@@ -50,3 +50,26 @@ def test_citation_cff_version_matches_pyproject() -> None:
         f"CITATION.cff version {_cff_version()!r} != pyproject version "
         f"{_PYPROJECT['project']['version']!r}"
     )
+
+
+def _action_pin() -> str:
+    import re
+
+    pins = re.findall(
+        r'pip install "ghostcite(?:\[pdf\])?==([^"]+)"', (_ROOT / "action.yml").read_text()
+    )
+    assert len(pins) == 1, f"expected exactly one ghostcite pin in action.yml, found {pins}"
+    return pins[0]
+
+
+def test_action_installs_the_released_version() -> None:
+    """`uses: musharna/ghostcite@v1` installs whatever action.yml pins.
+
+    release.yml force-moves the `v1` tag to every release commit, so the pin in
+    that commit is what Action users run. It sat at 0.4.0 through 0.5.0-0.5.3:
+    the tag advanced four times and every consumer kept a four-release-old tool.
+    """
+    assert _action_pin() == _PYPROJECT["project"]["version"], (
+        f"action.yml pins ghostcite=={_action_pin()} but this commit releases "
+        f"{_PYPROJECT['project']['version']}"
+    )

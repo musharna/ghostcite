@@ -6,6 +6,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-18
+
+### Fixed
+
+- **The GitHub Action installed ghostcite 0.4.0.** `action.yml` pinned the
+  version by hand and nothing compared it to the release, so `@v1` moved
+  forward four times while every Action user kept the 0.4.0 checker. The pin
+  now tracks the release (with the `pdf` extra) and a packaging test fails if
+  the two differ.
+
 ### Added
 
 - **Manuscript input: `ghostcite paper.pdf` and `ghostcite manuscript.docx`.**
