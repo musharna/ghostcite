@@ -11,7 +11,7 @@ from ghostcite.compare import cross_check_openalex, cross_check_pubmed
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import Finding, Tier
 from ghostcite.openalex import OpenAlexClient
-from ghostcite.parsers import parse
+from ghostcite.parsers import DOCUMENT_SUFFIXES, FORMATS, parse, parse_file_bytes
 from ghostcite.pubmed import PubMedClient
 from ghostcite.report import render_json, render_text
 from ghostcite.retractions import (
@@ -47,10 +47,17 @@ def _parse_args(argv):
         "file",
         nargs="*",
         default=None,
-        help="bibliography file(s) or directory to scan (.bib, markdown refs, or "
-        "DOI list); directories are walked for *.bib/*.md. Use '-' for stdin.",
+        help="bibliography file(s) or directory to scan (.bib, markdown refs, DOI "
+        "list, or a manuscript .pdf/.docx whose reference list is read); directories "
+        "are walked for *.bib/*.md/*.pdf/*.docx. Use '-' for stdin.",
     )
-    p.add_argument("--format", choices=["auto", "bibtex", "markdown", "doi"], default="auto")
+    p.add_argument(
+        "--format",
+        choices=list(FORMATS),
+        default="auto",
+        help="input format; 'document' treats the input as a manuscript and reads "
+        "its reference section (auto for .pdf/.docx)",
+    )
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.add_argument("--dry-run", action="store_true", help="parse + count only, no network")
     p.add_argument(
@@ -201,7 +208,7 @@ def _fetch_retractions_main(argv) -> int:
     return 0
 
 
-_SCAN_SUFFIXES = (".bib", ".md", ".markdown")
+_SCAN_SUFFIXES = (".bib", ".md", ".markdown", ".pdf", ".docx")
 
 
 def _collect_input_files(paths: list[str]) -> list[str]:
@@ -345,16 +352,22 @@ def main(argv=None) -> int:
         tag_source = len(files) > 1
         for fp in files:
             try:
-                with open(fp, encoding="utf-8") as fh:
-                    text = fh.read()
+                with open(fp, "rb") as fh:
+                    data = fh.read()
             except OSError as e:
                 print(f"ghostcite: cannot read {fp}: {e}", file=sys.stderr)
                 return 2
             try:
-                file_cites = parse(text, fmt=args.format)
-            except ValueError as e:
+                file_cites = parse_file_bytes(data, fp, fmt=args.format)
+            except ValueError as e:  # DocumentInputError is a ValueError
                 print(f"ghostcite: {fp}: {e}", file=sys.stderr)
                 return 2
+            if fp.lower().endswith(DOCUMENT_SUFFIXES) and not file_cites:
+                print(
+                    f"ghostcite: {fp}: no reference entries found (no References heading, "
+                    "or the list is an image/scan)",
+                    file=sys.stderr,
+                )
             if tag_source:
                 for c in file_cites:
                     c.source_file = fp
