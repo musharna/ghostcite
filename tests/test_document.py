@@ -381,3 +381,51 @@ def test_cli_bad_document_exits_2(tmp_path, capsys):
     rc = cli.main([str(tmp_path / "broken.docx"), "--dry-run"])
     assert rc == 2
     assert "not a DOCX" in capsys.readouterr().err
+
+
+def test_byline_wrapped_after_an_initial_is_one_entry():
+    # Sanderson (2002) prints Korber et al. with the byline broken after "A." --
+    # which looks like a sentence end, and the next line ("LAPEDES, B. H. ...") looks
+    # like an entry. It was split there and reported as Lapedes misciting Korber.
+    # An author-year entry cannot end before its own year has appeared.
+    section = (
+        "KISHINO, H. 2001. Performance of a divergence time method. Mol. Biol. Evol. 18:\n"
+        "352-361.\n"
+        "KORBER, B., M. MULDOON, J. THEILER, F. GAO, R. GUPTA, A.\n"
+        "LAPEDES, B. H. HAHN, S. WOLINSKY, and T. BHATTACHAR-\n"
+        "YA. 2000. Timing the ancestor of the HIV-1 pandemic\n"
+        "strains. Science 288:1789-1796.\n"
+        "LANGLEY, C. H. 1974. An examination of the constancy of the rate. J. Mol. Evol. 3:161-177.\n"
+    )
+    entries = split_entries(section)
+    assert [e.split(",")[0] for _, e in entries] == ["KISHINO", "KORBER", "LANGLEY"]
+    assert [n for n, _ in entries] == [1, 3, 7]
+    assert "LAPEDES, B. H. HAHN" in entries[1][1]
+
+
+def test_publisher_line_does_not_borrow_the_next_entrys_year():
+    # "Cambridge University Press, New York." is author-shaped and sits within
+    # three lines of the NEXT entry's year. Taken as a start it swallows that entry.
+    section = (
+        "PRESS, W. H., B. P. FLANNERY, and W. T. VETTERLING. 1992. Numerical recipes in C. 2nd ed.\n"
+        "Cambridge University Press, New York.\n"
+        "RAMBAUT, A., and L. BROMHAM. 1998. Estimating divergence dates. Mol. Biol. Evol. 15:442-448.\n"
+        "POINTS OF VIEW 357\n"
+        "Benton M.J., Surkov M.V. 2004. Ecosystem remodelling. Nature 432:97-100.\n"
+    )
+    entries = split_entries(section)
+    assert [n for n, _ in entries] == [1, 3, 5]
+    assert entries[0][1].endswith("Cambridge University Press, New York.")
+    assert entries[1][1].startswith("RAMBAUT")
+
+
+def test_running_head_between_pages_is_not_an_entry_start():
+    # pypdf prints Parham's page furniture as "2012" / "POINTS OF VIEW" / "357".
+    # The middle line is capitalised words near a year; a byline always carries a
+    # comma or an initial's period, a running head neither.
+    section = (
+        "Anquetin J. 2012. Reassessment of basal turtles. J. Syst. Palaeontol. 10:3-45.\n"
+        "\n2012\nPOINTS OF VIEW\n357\n"
+        "Benton M.J., Surkov M.V. 2004. Ecosystem remodelling. Nature 432:97-100.\n"
+    )
+    assert [e[:6] for _, e in split_entries(section)] == ["Anquet", "Benton"]

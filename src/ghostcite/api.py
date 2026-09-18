@@ -8,10 +8,11 @@ Exposes:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from ghostcite.compare import evaluate
+from ghostcite.compare import evaluate, search_hit_is_cited_work
 from ghostcite.crossref import CrossRefClient
 from ghostcite.models import CanonicalRecord, Citation, Finding, Tier
 from ghostcite.parsers import parse
@@ -36,6 +37,12 @@ _TIER_PRIORITY: dict[Tier, int] = {
 }
 
 _GHOST_TIERS = {Tier.AUTHOR, Tier.TITLE, Tier.YEAR, Tier.RETRACTION}
+
+
+def _one_line(text: str | None, limit: int = 90) -> str:
+    """A CrossRef title for a message: markup and line breaks out, bounded length."""
+    flat = " ".join(re.sub(r"<[^>]+>", " ", text or "").split())
+    return flat if len(flat) <= limit else flat[: limit - 1].rstrip() + "…"
 
 
 # ---------------------------------------------------------------------------
@@ -107,14 +114,28 @@ def _process_citation(
         The evaluated findings and the CrossRef canonical record (which callers
         such as cli.py may need for PubMed cross-check).
     """
+    unresolved_reason = None
     if citation.doi:
         rec = client.lookup_by_doi(citation.doi, cache=cache)
     else:
         rec = client.search_bibliographic(
-            citation.claimed_first_author, citation.claimed_year, citation.claimed_title
+            citation.claimed_first_author,
+            citation.claimed_year,
+            citation.claimed_title,
+            reference=citation.raw,
         )
+        if rec is None:
+            unresolved_reason = "no CrossRef match for this entry (no DOI to look up)"
+        elif not search_hit_is_cited_work(citation, rec):
+            # Judging the byline against a different paper would call a correct
+            # citation a wrong author; an unconfirmed hit is inconclusive.
+            who = rec.authors[0] if rec.authors else "unknown author"
+            unresolved_reason = (
+                "no confident CrossRef match for this entry "
+                f'(closest: {who} {rec.year}, "{_one_line(rec.title)}")'
+            )
+            rec = None
 
-    unresolved_reason = None
     if rec is None and citation.doi and probe_doi:
         resolves = client.doi_resolves(citation.doi)
         if resolves is True:
