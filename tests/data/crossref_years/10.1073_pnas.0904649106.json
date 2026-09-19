@@ -1,0 +1,64 @@
+{
+ "DOI": "10.1073/pnas.0904649106",
+ "type": "journal-article",
+ "title": [
+  "Molecules, morphology, and ecology indicate a recent, amphibious ancestry for echidnas"
+ ],
+ "container-title": [
+  "Proceedings of the National Academy of Sciences"
+ ],
+ "volume": "106",
+ "author": [
+  {
+   "given": "Matthew J.",
+   "family": "Phillips",
+   "sequence": "first"
+  },
+  {
+   "given": "Thomas H.",
+   "family": "Bennett",
+   "sequence": "additional"
+  },
+  {
+   "given": "Michael S. Y.",
+   "family": "Lee",
+   "sequence": "additional"
+  }
+ ],
+ "published": {
+  "date-parts": [
+   [
+    2009,
+    10,
+    6
+   ]
+  ]
+ },
+ "published-print": {
+  "date-parts": [
+   [
+    2009,
+    10,
+    6
+   ]
+  ]
+ },
+ "published-online": {
+  "date-parts": [
+   [
+    2009,
+    10,
+    6
+   ]
+  ]
+ },
+ "issued": {
+  "date-parts": [
+   [
+    2009,
+    10,
+    6
+   ]
+  ]
+ }
+}
