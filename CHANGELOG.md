@@ -6,6 +6,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-09-18
+
+### Fixed
+
+- **A correct citation failed the year check when CrossRef never recorded the
+  year it was cited by.** A year finding means "CrossRef holds this work's years
+  and yours is not among them"; two kinds of record break that premise, and both
+  can be read off the record. Found on published reference lists, where two of
+  three one-year findings were against correct citations:
+  - an online date and no print date (Benton & Donoghue, *Mol Biol Evol* 24: online
+    October 2006, printed in the 2007 volume, print date never deposited). The
+    year directly after an online-only date is now reported as Tier C, not B;
+  - a container named for the cited year ("Biocomputing 2001", printed December
+    2000), likewise Tier C.
+  A record with both dates still fails a year that is one off (Phillips et al.,
+  *PNAS* 106: online and print 2009, cited as 2010 — still Tier B). The cost: an
+  online-only journal has no print date either, so a citation one year late to
+  such a journal is now a Tier C note instead of a failure.
+- **The cache dropped all but the earliest year of a record.** `years` was
+  written but never read back, so an online-first paper cited by its print year
+  passed on the first run and failed on every cached run after it.
+
 ## [0.6.1] - 2026-09-18
 
 ### Fixed

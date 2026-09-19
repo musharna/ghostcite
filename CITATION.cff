@@ -23,7 +23,7 @@ identifiers:
 repository-code: "https://github.com/musharna/ghostcite"
 url: "https://pypi.org/project/ghostcite/"
 license: MIT
-version: 0.6.1
+version: 0.6.2
 date-released: "2026-09-18"
 keywords:
   - citations

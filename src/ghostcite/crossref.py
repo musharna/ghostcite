@@ -97,6 +97,11 @@ def _years(message: dict) -> tuple[int, ...]:
     return tuple(sorted(seen))
 
 
+def _year_of(message: dict, key: str) -> int | None:
+    parts = (message.get(key) or {}).get("date-parts") or []
+    return int(parts[0][0]) if parts and parts[0] and parts[0][0] else None
+
+
 def _year(message: dict) -> int | None:
     ys = _years(message)
     return ys[0] if ys else None
@@ -113,6 +118,8 @@ def _record_from_message(message: dict, low_confidence: bool = False) -> Canonic
         authors=authors,
         year=_year(message),
         years=_years(message),
+        online_year=_year_of(message, "published-online"),
+        print_year=_year_of(message, "published-print"),
         title=title,
         journal=journal,
         retracted=retracted,

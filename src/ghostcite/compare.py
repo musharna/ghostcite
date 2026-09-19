@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from ghostcite.models import CanonicalRecord, Citation, Finding, OpenAlexRecord, PubMedRecord, Tier
@@ -404,6 +405,37 @@ def evaluate(
     return findings
 
 
+def _year_crossref_cannot_see(claimed_year: int, canonical: CanonicalRecord) -> str | None:
+    """Why a cited year absent from the record may still be right, or None.
+
+    A year finding says "CrossRef holds this work's years and yours is not one
+    of them". Two shapes of record break that premise, both read off the record
+    itself rather than guessed:
+
+    * An online date and NO print date. The article went online late in one
+      year and was printed in the next year's volume, but the publisher never
+      deposited the print date. The cited year is the print year CrossRef lacks.
+      Only the year directly after the online date is excused.
+    * A container named for the cited year ("Biocomputing 2001", printed
+      December 2000). Proceedings and yearbooks are cited by the named year.
+    """
+    if (
+        canonical.online_year is not None
+        and canonical.print_year is None
+        and claimed_year == canonical.online_year + 1
+    ):
+        return (
+            f"cited year {claimed_year} vs CrossRef {canonical.online_year}: CrossRef holds "
+            "only the online date, so the print year cannot be checked — not flagged"
+        )
+    if canonical.journal and re.search(rf"(?<!\d){claimed_year}(?!\d)", canonical.journal):
+        return (
+            f"cited year {claimed_year} vs CrossRef {canonical.year}: the container is "
+            f'"{canonical.journal}", named for the cited year — not flagged'
+        )
+    return None
+
+
 def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding]:
     families_raw = canonical.authors or []
     if not families_raw:
@@ -464,6 +496,9 @@ def _author_year(citation: Citation, canonical: CanonicalRecord) -> list[Finding
                         f"this DOI is a preprint / has a published variant — not flagged{conf}",
                     )
                 ]
+            unseen = _year_crossref_cannot_see(citation.claimed_year, canonical)
+            if unseen:
+                return [Finding(citation, Tier.COSMETIC, canonical, f"{unseen}{conf}")]
             shown = "/".join(str(y) for y in accepted) if len(accepted) > 1 else str(canonical.year)
             label = "CrossRef years are" if len(accepted) > 1 else "CrossRef year is"
             return [

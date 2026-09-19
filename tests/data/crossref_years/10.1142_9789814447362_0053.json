@@ -1,0 +1,65 @@
+{
+ "DOI": "10.1142/9789814447362_0053",
+ "type": "proceedings-article",
+ "title": [
+  "SCALING OF ACCURACY IN EXTREMELY LARGE PHYLOGENETIC TREES"
+ ],
+ "container-title": [
+  "Biocomputing 2001"
+ ],
+ "author": [
+  {
+   "given": "O. R. P.",
+   "family": "BININDA-EMONDS",
+   "sequence": "first"
+  },
+  {
+   "given": "S. G.",
+   "family": "BRADY",
+   "sequence": "additional"
+  },
+  {
+   "given": "J.",
+   "family": "KIM",
+   "sequence": "additional"
+  },
+  {
+   "given": "M. J.",
+   "family": "SANDERSON",
+   "sequence": "additional"
+  }
+ ],
+ "published": {
+  "date-parts": [
+   [
+    2000,
+    12
+   ]
+  ]
+ },
+ "published-print": {
+  "date-parts": [
+   [
+    2000,
+    12
+   ]
+  ]
+ },
+ "published-online": {
+  "date-parts": [
+   [
+    2013,
+    6,
+    3
+   ]
+  ]
+ },
+ "issued": {
+  "date-parts": [
+   [
+    2000,
+    12
+   ]
+  ]
+ }
+}

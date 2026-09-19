@@ -38,6 +38,12 @@ class CanonicalRecord:
     # by either; `year` is the earliest, kept for display, and a claimed year is a
     # mismatch only when it matches NONE of these.
     years: tuple[int, ...] = ()
+    # The two dated events behind `years`, kept apart because what CrossRef does
+    # NOT hold matters: a journal article with an online date and no print date
+    # has a print/volume year ghostcite cannot see, and that is the year most
+    # bibliographies cite.
+    online_year: int | None = None
+    print_year: int | None = None
     title: str | None = None
     journal: str | None = None
     retracted: bool = False

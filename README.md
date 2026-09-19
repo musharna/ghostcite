@@ -157,7 +157,7 @@ with the project URL, never a personal email).
 | **A**  | author-mismatch — claimed first author isn't in CrossRef's authors                                  | Yes                             |
 | **T**  | title-mismatch — DOI resolves to a different paper (identifier hijack)                              | Yes                             |
 | **B**  | year-mismatch — author matches, claimed year differs                                                | Yes                             |
-| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger)                               | No (info)                       |
+| **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger); also a cited year CrossRef has no record to check (preprint variant, online date with no print date, container named for the year) | No (info) |
 | **R**  | retraction / expression-of-concern per CrossRef                                                     | Yes (fires regardless of A/B/C) |
 | **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive                                    | No (warn)                       |
 | **V**  | venue-mismatch — cited journal/venue differs from CrossRef's record (opt-in, abbreviation-tolerant) | No (info, opt-in)               |
