@@ -1,5 +1,5 @@
 """End-to-end on a real typeset journal PDF (a Systematic Biology article kept in
-the user's Downloads). Skipped unless GHOSTCITE_LIVE=1 and the file exists.
+GHOSTCITE_LIVE_PDF). Skipped unless GHOSTCITE_LIVE=1 and that path is a file.
 """
 
 from __future__ import annotations
@@ -9,10 +9,11 @@ from pathlib import Path
 
 import pytest
 
-_PDF = Path("/mnt/c/Users/a2b32/Downloads/12_Parham.pdf")
+_PDF_ENV = os.environ.get("GHOSTCITE_LIVE_PDF", "")
+_PDF = Path(_PDF_ENV) if _PDF_ENV else None  # Path("") would be "." and exist
 _SKIP = pytest.mark.skipif(
-    os.environ.get("GHOSTCITE_LIVE") != "1" or not _PDF.exists(),
-    reason="set GHOSTCITE_LIVE=1 and keep the sample PDF in place",
+    os.environ.get("GHOSTCITE_LIVE") != "1" or _PDF is None or not _PDF.is_file(),
+    reason="set GHOSTCITE_LIVE=1 and GHOSTCITE_LIVE_PDF=<path to Parham et al. 2012 Syst. Biol. PDF>",
 )
 
 
