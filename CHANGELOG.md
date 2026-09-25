@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Parsing a BibTeX file was quadratic in its number of entries.** Each entry's
+  line number was found by rescanning the file from the top, so 1,000 entries
+  took 46 ms, 4,000 took 0.61 s and 16,000 took 10.5 s. Line numbers are now
+  counted forward from the previous entry (16,000 entries: 0.43 s). A test
+  counts the characters the parser reads, so a return to the rescan fails on
+  every machine rather than only on a slow one.
+
 ## [0.6.2] - 2026-09-18
 
 ### Fixed

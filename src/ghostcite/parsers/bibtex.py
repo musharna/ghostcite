@@ -87,7 +87,12 @@ def _iter_entries(text: str):
 
 def parse_bibtex(text: str) -> list[Citation]:
     cites: list[Citation] = []
+    # Line numbers are counted forward from the previous entry, not from the top
+    # of the file each time: the rescan made parsing quadratic in entries.
+    line_no, counted_to = 1, 0
     for start, etype, entry in _iter_entries(text):
+        line_no += text.count("\n", counted_to, start)
+        counted_to = start
         if etype in _NON_ENTRY_TYPES:
             continue
         _key, sep, rest = entry.partition(",")
@@ -96,7 +101,6 @@ def parse_bibtex(text: str) -> list[Citation]:
             # in a shape we do not recognise. Skipped rather than half-parsed.
             continue
         body = rest[:-1] if rest.endswith("}") else rest
-        line_no = text[:start].count("\n") + 1
         fields = {k.lower(): " ".join((bv or qv).split()) for k, bv, qv in _FIELD.findall(body)}
         year = None
         if fields.get("year"):
