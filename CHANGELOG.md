@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-09-25
+
 ### Fixed
 
 - **Parsing a BibTeX file was quadratic in its number of entries.** Each entry's
