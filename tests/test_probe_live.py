@@ -9,7 +9,7 @@ pytestmark = pytest.mark.live
 
 
 def test_known_ghost_li_should_be_chen():
-    # From the 2026-04-29 Phelipanche audit: cited "Li 2024", DOI is actually Chen et al.
+    # Real-world case: cited "Li 2024", DOI is actually Chen et al.
     c = Citation(
         raw="Li X (2024)",
         doi="10.3390/plants13060869",
