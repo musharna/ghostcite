@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-09-26
+
 ### Documentation
 
 - README corrections: ghostcite uses CrossRef's public pool (descriptive
@@ -13,7 +15,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   author listed at another position; Tier V is always reported and fails CI only
   with `--fail-on venue`; the claim-support layer runs from `--claims`; the
   related-work comparison no longer says every LLM-based checker needs a GPU or
-  that ghostcite is sub-second; the pre-commit example pins `v0.6.3`.
+  that ghostcite is sub-second; the pre-commit example pins the current tag.
 
 ## [0.6.3] - 2026-09-25
 

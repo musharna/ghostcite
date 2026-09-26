@@ -30,7 +30,7 @@ runs:
       shell: bash
       # Pinned for reproducibility/supply-chain safety; bumped alongside the
       # major-tag move in release.yml so `@v1` always installs a known version.
-      run: pip install "ghostcite[pdf]==0.6.3"
+      run: pip install "ghostcite[pdf]==0.6.4"
 
     - name: Run ghostcite
       shell: bash
