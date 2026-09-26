@@ -14,7 +14,7 @@
 
 `ghostcite` is a deterministic, **no-LLM** command-line tool that cross-checks a
 bibliography's _claimed_ author and year against CrossRef's canonical record for
-each DOI. It catches the dominant ghost-citation failure mode — a reference whose
+each DOI. It catches a common ghost-citation failure mode — a reference whose
 cited authorship doesn't match the paper the DOI actually points to — and flags
 retracted or expression-of-concern works along the way.
 
@@ -28,8 +28,9 @@ manuscript cites "Li et al. 2024," but DOI `10.3390/plants13060869` is actually
 > Does the metadata you wrote for this citation match what CrossRef says the DOI actually is?
 
 No model, no API key, **no GPU**, no download — just CrossRef's REST API and a
-comparison. It runs in seconds on any CI runner, where the heavyweight LLM-based
-checkers can't (those need a local GPU — see [Related work](#related-work--faq)).
+comparison. It runs on any CI runner. Of the LLM-based checkers, sciwrite-lint
+needs a local GPU and RefChecker calls cloud LLM APIs by default (see
+[Related work](#related-work--faq)).
 
 ## Install
 
@@ -67,6 +68,7 @@ with no text layer yields no entries, and says so.
 ```text
 $ ghostcite refs.bib
 ghostcite: 1 entries, 1 with DOIs
+  retractions: CrossRef live
   ✗ A  L1  Li (2024)  →  DOI resolves to Chen (2024) — possibly wrong DOI  [10.3390/plants13060869]
   1 A
 $ echo $?
@@ -146,21 +148,21 @@ No language model is involved at any step. ghostcite resolves each DOI at CrossR
 (and optionally PubMed), then does a pure, deterministic comparison of the claimed
 first-author surname (Unicode-folded, punctuation-stripped) and year against the
 canonical record, plus a retraction / expression-of-concern check. Only the HTTP
-client touches the network, via CrossRef's polite pool (a descriptive `User-Agent`
-with the project URL, never a personal email).
+client touches the network. It uses CrossRef's public pool, sending a descriptive
+`User-Agent` with the project URL and no email address.
 
 <details>
 <summary><b>Severity tiers, input formats &amp; exit codes</b></summary>
 
 | Tier   | Meaning                                                                                             | Fails CI?                       |
 | ------ | --------------------------------------------------------------------------------------------------- | ------------------------------- |
-| **A**  | author-mismatch — claimed first author isn't in CrossRef's authors                                  | Yes                             |
+| **A**  | author-mismatch — claimed first author isn't CrossRef's first author (absent from the byline, or listed at another position) | Yes                             |
 | **T**  | title-mismatch — DOI resolves to a different paper (identifier hijack)                              | Yes                             |
 | **B**  | year-mismatch — author matches, claimed year differs                                                | Yes                             |
 | **C**  | cosmetic — matches only after diacritic/initials fold (Bürger≈Burger); also a cited year CrossRef has no record to check (preprint variant, online date with no print date, container named for the year) | No (info) |
 | **R**  | retraction / expression-of-concern per CrossRef                                                     | Yes (fires regardless of A/B/C) |
 | **U**  | unresolvable — DOI 404s, or no-DOI entry search was inconclusive                                    | No (warn)                       |
-| **V**  | venue-mismatch — cited journal/venue differs from CrossRef's record (opt-in, abbreviation-tolerant) | No (info, opt-in)               |
+| **V**  | venue-mismatch — cited journal/venue differs from CrossRef's record (abbreviation-tolerant; always reported) | Only with `--fail-on venue` |
 | **OK** | first author + year match                                                                           | —                               |
 
 Tier **T** catches "identifier hijacking": the DOI resolves, but to a _different
@@ -207,7 +209,7 @@ Drop in the composite **GitHub Action**:
 ```yaml
 repos:
   - repo: https://github.com/musharna/ghostcite
-    rev: v0.4.0
+    rev: v0.6.3
     hooks:
       - id: ghostcite
         # Staged .bib/.md files are appended automatically; args carries flags only.
@@ -220,8 +222,7 @@ exit, blocking the merge or commit before submission.
 ### Offline / reproducible retractions
 
 By default ghostcite reads retraction status from CrossRef live. For a
-**deterministic, byte-reproducible** retraction check — with broader coverage than
-CrossRef's own flags — point it at a
+**deterministic, byte-reproducible** retraction check, point it at a
 [Retraction Watch](https://www.crossref.org/labs/retraction-watch/) snapshot:
 
 ```bash
@@ -259,8 +260,10 @@ abstract-grounded and marked non-deterministic; they never fail CI unless you ad
 
 `ghostcite`'s deterministic core checks **metadata correctness** (does the DOI's
 record match what you wrote), not deep claim support. It _does_ offer an **opt-in,
-abstract-grounded** claim-support check (`--semantic`, bring-your-own LLM backend,
-still no local GPU — see above), but that stays intentionally lightweight:
+abstract-grounded** claim-support check (`--claims claims.json` with a
+bring-your-own LLM backend, still no local GPU — see above; `--semantic` on a
+bibliography without `--claims` only prints a warning), but that stays
+intentionally lightweight:
 full-text entailment, internal-consistency, statistics, and figure checks are a
 heavier, GPU-bound concern best served by
 [**sciwrite-lint**](#related-work--faq). ghostcite deliberately stays on the
@@ -292,16 +295,16 @@ does no auto-fixing and no citation-style linting. CrossRef is the source of tru
 ghostcite's niche is **deterministic, no-GPU, CLI-first** checking focused on the
 **byline-mismatch** failure mode (right DOI, wrong author/year) plus **retraction**
 flagging — built to run unattended, in seconds, on any CI runner. Its core never
-calls an LLM (an opt-in `--semantic` layer adds abstract-grounded claim support via
-a bring-your-own backend). The heavyweight LLM-based linters below verify _more_
-(full-text claim support, internal consistency) but need a local GPU and
-minutes-to-tens-of-minutes per paper; ghostcite is the lightweight gate you can run
-on every commit.
+calls an LLM (an opt-in `--claims` layer adds abstract-grounded claim support via
+a bring-your-own backend). The LLM-based tools below verify _more_: sciwrite-lint
+checks full-text claim support and internal consistency but needs a local GPU and
+minutes-to-tens-of-minutes per paper; RefChecker uses cloud LLM APIs by default.
+ghostcite is the lightweight gate you can run on every commit.
 
 | Tool                                                                                                                                 | What it does                                                                                                                                          | How ghostcite differs                                                                                                                                                                                                                                                                                                |
 | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [sciwrite-lint](https://github.com/authentic-research-partners/sciwrite-lint) ([arXiv 2604.08501](https://arxiv.org/abs/2604.08501)) | Local-LLM scientific-writing linter — byline + retraction **plus** full-text claim-support entailment, internal-consistency, stats, and figure checks | a capability superset, but needs an NVIDIA GPU (16 GB+) and runs minutes-to-30 min/paper; ghostcite is no-GPU, deterministic, sub-second, and CI-native — its `--semantic` check is abstract-only and backend-optional. **Complementary:** ghostcite gates every commit, sciwrite-lint deep-audits before submission |
-| [RefChecker](https://github.com/markrussinovich/refchecker)                                                                          | LLM-powered web-search reference validator                                                                                                            | ghostcite is no-LLM, deterministic, and CI-safe (no model, no API key)                                                                                                                                                                                                                                               |
+| [sciwrite-lint](https://github.com/authentic-research-partners/sciwrite-lint) ([arXiv 2604.08501](https://arxiv.org/abs/2604.08501)) | Local-LLM scientific-writing linter — byline + retraction **plus** full-text claim-support entailment, internal-consistency, stats, and figure checks | a capability superset, but needs an NVIDIA GPU (16 GB+) and runs minutes-to-30 min/paper; ghostcite is no-GPU, deterministic, and CI-native (network-bound: at most about 5 CrossRef requests/s on the public pool) — its `--claims` check is abstract-only and backend-optional. **Complementary:** ghostcite gates every commit, sciwrite-lint deep-audits before submission |
+| [RefChecker](https://github.com/markrussinovich/refchecker)                                                                          | Web-search reference validator, LLM-assisted by default (has a `--no-llm` mode)                                                                       | ghostcite never calls an LLM in its core checks and needs no model or API key                                                                                                                                                                                                                                               |
 | claude-skill-citation-checker                                                                                                        | A Claude Code skill for an LLM agent                                                                                                                  | ghostcite is a standalone CLI + Action — no agent or LLM host needed                                                                                                                                                                                                                                                 |
 | [BibTeX Verifier](https://merfanian.github.io/Bibtex-Verifier/)                                                                      | In-browser BibTeX checker                                                                                                                             | ghostcite is scriptable from the CLI and also flags retractions                                                                                                                                                                                                                                                      |
 | [CERCA](https://github.com/lidianycs/cerca)                                                                                          | Java / AGPL citation checker                                                                                                                          | ghostcite is Python / MIT / `pip install`-able                                                                                                                                                                                                                                                                       |
@@ -311,7 +314,7 @@ on every commit.
 **Does it call an LLM?** Not by default. The core byline / year / retraction checks
 are a deterministic comparison of the metadata you wrote against CrossRef's (and
 optionally PubMed's) canonical record — no model, no prompt, no API key. Only the
-opt-in `--semantic` claim-support layer calls an LLM, and only through a
+opt-in `--claims` claim-support layer calls an LLM, and only through a
 bring-your-own backend you configure.
 
 **Will it hit rate limits?** It self-throttles to CrossRef's advertised rate limit
