@@ -209,7 +209,7 @@ Drop in the composite **GitHub Action**:
 ```yaml
 repos:
   - repo: https://github.com/musharna/ghostcite
-    rev: v0.6.3
+    rev: v0.6.4
     hooks:
       - id: ghostcite
         # Staged .bib/.md files are appended automatically; args carries flags only.

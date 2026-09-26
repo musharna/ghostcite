@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 
 from ghostcite.api import CheckResult, check_claim_support, check_doi, check_text
 from ghostcite.models import (
