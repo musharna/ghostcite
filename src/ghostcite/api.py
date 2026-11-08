@@ -143,9 +143,10 @@ def _process_citation(
         elif resolves is False:
             unresolved_reason = "DOI does not resolve (dead or fabricated DOI)"
 
+    override = None
     if retraction_db is not None:
-        doi_for_lookup = citation.doi or (rec.doi if rec else "") or ""
-        override = retraction_db.lookup(doi_for_lookup)
+        override = retraction_db.lookup(citation.doi or (rec.doi if rec else "") or "")
+    if retraction_db is not None and override is not None:  # hit: OR-ed with live flags
         retraction_source = retraction_db.source_label
         findings = evaluate(
             citation,

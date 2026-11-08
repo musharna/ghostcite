@@ -146,6 +146,22 @@ class TestCheckDoi:
         assert result.tier == Tier.RETRACTION
         assert result.is_ghost is True
 
+    def test_snapshot_miss_cannot_hide_crossref_retraction(self, tmp_path):
+        """A DOI retracted after the snapshot was taken: CrossRef's flag must stand."""
+        from ghostcite.retractions import RetractionDB
+
+        csv = tmp_path / "rw.csv"
+        csv.write_text("OriginalPaperDOI,RetractionNature\n10.1/other,Retraction\n", "utf-8")
+        rdb = RetractionDB.load(csv)
+
+        result = check_doi("10.1/retracted", client=FakeClient(), retraction_db=rdb)
+        assert result.tier == Tier.RETRACTION
+        assert result.message == "RETRACTED per CrossRef"
+        # positive control: the snapshot's own retraction is still reported, by name
+        snap = check_doi("10.1/other", client=FakeClient(), retraction_db=rdb)
+        assert snap.tier == Tier.RETRACTION
+        assert "Retraction Watch snapshot" in snap.message
+
     def test_creates_client_when_none(self, monkeypatch):
         """check_doi creates its own CrossRefClient when client=None."""
         created = []

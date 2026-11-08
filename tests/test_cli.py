@@ -203,6 +203,41 @@ def test_retraction_db_flags_when_crossref_did_not(tmp_path, capsys, monkeypatch
     assert "Retraction Watch snapshot" in out  # source label in finding + header
 
 
+def test_snapshot_miss_still_fails_ci_on_crossref_retraction(tmp_path, capsys, monkeypatch):
+    """Retracted after the snapshot date: CrossRef flags it, the snapshot lacks it."""
+
+    class LiveRetractedFake(FakeClient):
+        table = {
+            "10.1/late": CanonicalRecord(
+                doi="10.1/late", authors=["Doe"], year=2000, title="t", retracted=True
+            ),
+        }
+
+    monkeypatch.setattr(cli, "CrossRefClient", LiveRetractedFake)
+    db = _db_csv(tmp_path)  # lists 10.1/ret only
+    f = _write(tmp_path, "@article{k, author={Doe, J}, year={2000}, title={t}, doi={10.1/late}}")
+    code = cli.main([f, "--retraction-db", db, "--fail-on", "retraction"])
+    out = capsys.readouterr().out
+    assert "RETRACTED per CrossRef" in out
+    assert code == 1
+
+
+def test_stale_default_cache_warns_on_stderr_and_is_used(tmp_path, capsys, monkeypatch):
+    _retracted_fake(monkeypatch)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
+    cache = tmp_path / "ghostcite" / "retractions.csv"
+    cache.parent.mkdir()
+    cache.write_text("OriginalPaperDOI,RetractionNature\n10.1/ret,Retraction\n", "utf-8")
+    cache.with_suffix(".meta.json").write_text('{"fetched_at": "2001-01-01T00:00:00+00:00"}')
+    f = _write(tmp_path, "@article{k, author={Doe, J}, year={2000}, title={t}, doi={10.1/ret}}")
+    code = cli.main([f])
+    captured = capsys.readouterr()
+    assert "ghostcite: warning: retraction snapshot" in captured.err
+    assert "days old" in captured.err
+    assert "RETRACTED per Retraction Watch snapshot 2001-01-01" in captured.out
+    assert code == 1
+
+
 def test_retraction_db_none_disables(tmp_path, capsys, monkeypatch):
     _retracted_fake(monkeypatch)
     f = _write(tmp_path, "@article{k, author={Doe, J}, year={2000}, title={t}, doi={10.1/ret}}")

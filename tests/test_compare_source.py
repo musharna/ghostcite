@@ -45,11 +45,15 @@ def test_retraction_override_with_null_canonical():
     assert all("no author data" not in f.message for f in findings)
 
 
-def test_retraction_override_false_suppresses_retraction_on_flagged_rec():
+def test_snapshot_cannot_hide_a_live_crossref_retraction():
+    # The snapshot lists the work only as an expression of concern; CrossRef has
+    # since recorded the retraction. The verdict is the OR, at the higher severity.
     c = Citation(raw="x", doi="10.1/a", claimed_first_author="Doe", claimed_year=2000)
     rec = CanonicalRecord(doi="10.1/a", authors=["Doe"], year=2000, retracted=True)
-    findings = evaluate(c, rec, retraction_source="CrossRef", retraction_override=(False, False))
-    assert not any(f.tier is Tier.RETRACTION for f in findings)
+    findings = evaluate(
+        c, rec, retraction_source="Retraction Watch snapshot", retraction_override=(False, True)
+    )
+    assert [f.message for f in findings if f.tier is Tier.RETRACTION] == ["RETRACTED per CrossRef"]
 
 
 def test_no_override_null_canonical_still_returns_unresolvable():

@@ -329,20 +329,26 @@ def evaluate(
 ) -> list[Finding]:
     """Compare a claimed citation against the canonical record. Empty list = OK.
 
-    ``retraction_override`` (retracted, eoc), when given, replaces the canonical
-    record\'s retraction flags as the authoritative signal — used by the offline
-    Retraction Watch source. It applies even when ``canonical is None`` (CrossRef
-    could not resolve the DOI but the snapshot still knows it is retracted)."""
-    if retraction_override is not None:
-        retracted, eoc = retraction_override
-    else:
-        retracted = bool(canonical and canonical.retracted)
-        eoc = bool(canonical and canonical.eoc)
+    ``retraction_override`` (retracted, eoc) is a Retraction Watch snapshot hit,
+    named by ``retraction_source``. It is OR-ed with the canonical record\'s live
+    CrossRef flags: the snapshot can add a retraction (even when ``canonical is
+    None``) but cannot hide one CrossRef reports, which is then labeled CrossRef."""
+    snap_retracted, snap_eoc = retraction_override or (False, False)
+    retracted = snap_retracted or bool(canonical and canonical.retracted)
+    eoc = snap_eoc or bool(canonical and canonical.eoc)
+
+    def _source(from_snapshot: bool) -> str:
+        return retraction_source if from_snapshot or retraction_override is None else "CrossRef"
 
     findings: list[Finding] = []
     if retracted:
         findings.append(
-            Finding(citation, Tier.RETRACTION, canonical, f"RETRACTED per {retraction_source}")
+            Finding(
+                citation,
+                Tier.RETRACTION,
+                canonical,
+                f"RETRACTED per {_source(snap_retracted)}",
+            )
         )
     elif eoc:
         findings.append(
@@ -350,7 +356,7 @@ def evaluate(
                 citation,
                 Tier.RETRACTION,
                 canonical,
-                f"Expression of concern per {retraction_source}",
+                f"Expression of concern per {_source(snap_eoc)}",
             )
         )
 
