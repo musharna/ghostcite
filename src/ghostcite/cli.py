@@ -103,8 +103,8 @@ def _parse_args(argv):
     p.add_argument(
         "--retraction-db",
         default=None,
-        help="path to a Retraction Watch CSV snapshot (authoritative retraction "
-        "source; 'none' forces live CrossRef even if a cache exists)",
+        help="path to a Retraction Watch CSV snapshot (OR-ed with CrossRef's live "
+        "retraction flags; 'none' forces live CrossRef even if a cache exists)",
     )
     p.add_argument(
         "--semantic",

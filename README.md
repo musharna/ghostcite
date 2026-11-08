@@ -219,10 +219,10 @@ repos:
 Either way, a finding at or above the `--fail-on` threshold returns a non-zero
 exit, blocking the merge or commit before submission.
 
-### Offline / reproducible retractions
+### Retraction Watch snapshot
 
-By default ghostcite reads retraction status from CrossRef live. For a
-**deterministic, byte-reproducible** retraction check, point it at a
+By default ghostcite reads retraction status from CrossRef live. For broader
+coverage, add a
 [Retraction Watch](https://www.crossref.org/labs/retraction-watch/) snapshot:
 
 ```bash
@@ -232,11 +232,18 @@ ghostcite refs.bib --retraction-db vendor/rw.csv  # or pin an exact snapshot in 
 ghostcite refs.bib --retraction-db none           # force live CrossRef
 ```
 
-When a snapshot is active it is the **authoritative** retraction source (the live
-CrossRef signal is skipped) and the report names the snapshot in use. The
-byline/year check still queries CrossRef live — this makes the _retraction tier_
-offline and reproducible, not the whole run. Pin a committed snapshot in CI for
-byte-reproducible results.
+When a snapshot is active, a work is reported retracted if **either** the
+snapshot or CrossRef's live record says so, and each finding names its source.
+The snapshot can add a retraction CrossRef has not recorded; it cannot hide one
+CrossRef reports, so a paper retracted after the snapshot was taken still fails
+`--fail-on retraction`. A DOI the snapshot does not list counts as unknown, not
+clean.
+
+The auto-loaded cache prints a warning on stderr once it is more than 30 days
+old (`DEFAULT_CACHE_MAX_AGE_DAYS`) and is still used; re-run
+`fetch-retractions` to refresh it. A snapshot pinned with `--retraction-db <path>`
+is not age-checked. `fetch-retractions` replaces the cache atomically, so an
+interrupted download leaves the previous snapshot in place.
 
 Retraction data: Crossref + Retraction Watch (The Center for Scientific
 Integrity). ghostcite downloads it on demand and does not redistribute it; see
