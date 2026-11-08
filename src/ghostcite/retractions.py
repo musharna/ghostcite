@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import warnings
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -17,6 +18,11 @@ from ghostcite import __version__
 _DOI_PREFIXES = ("https://doi.org/", "http://doi.org/", "http://dx.doi.org/", "doi:")
 _LABS_URL = "https://api.labs.crossref.org/data/retractionwatch"
 _UA = f"ghostcite/{__version__} (https://github.com/musharna/ghostcite)"
+
+# The auto-loaded cache is warned about past this age. Retraction Watch adds
+# notices daily; a month bounds how far behind an unpinned run can silently be.
+# A pinned ``--retraction-db <path>`` is a deliberate choice and is not checked.
+DEFAULT_CACHE_MAX_AGE_DAYS = 30
 
 
 class RetractionDBError(Exception):
@@ -48,10 +54,14 @@ class RetractionDB:
         when = f" {self.snapshot_date}" if self.snapshot_date else ""
         return f"Retraction Watch snapshot{when} ({self.row_count} rows)"
 
-    def lookup(self, doi: str) -> tuple[bool, bool]:
+    def lookup(self, doi: str) -> tuple[bool, bool] | None:
+        """``(retracted, eoc)`` when the snapshot lists the DOI, else ``None``.
+
+        A DOI absent from the snapshot is unknown, not clean: it may have been
+        retracted after the snapshot was taken."""
         d = normalize_doi(doi)
-        if not d:
-            return (False, False)
+        if d not in self.retracted and d not in self.eoc:
+            return None
         return (d in self.retracted, d in self.eoc)
 
     @classmethod
@@ -121,8 +131,38 @@ def resolve_db(retraction_db_arg: str | None) -> RetractionDB | None:
         return RetractionDB.load(retraction_db_arg)
     cache = default_cache_path()
     if cache.exists():
-        return RetractionDB.load(cache)
+        db = RetractionDB.load(cache)
+        _warn_if_stale(db, cache)
+        return db
     return None
+
+
+def _warn_if_stale(db: RetractionDB, path: Path) -> None:
+    try:
+        age = (date.today() - date.fromisoformat(db.snapshot_date)).days
+    except ValueError:
+        age = None
+    if age is not None and age <= DEFAULT_CACHE_MAX_AGE_DAYS:
+        return
+    how_old = f"{age} days old" if age is not None else "of unknown age"
+    warnings.warn(
+        f"retraction snapshot {path} is {how_old} (limit {DEFAULT_CACHE_MAX_AGE_DAYS}); "
+        "retractions since then are known only if CrossRef flags them. "
+        "Refresh with `ghostcite fetch-retractions --mailto ...`.",
+        UserWarning,
+        stacklevel=3,
+    )
+
+
+def _write_atomic(dest: Path, data: bytes) -> None:
+    """Write via a sibling temp file and ``os.replace``: a crash leaves the old file."""
+    tmp = dest.with_name(f".{dest.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def fetch_retractions(mailto: str, dest: str | Path, *, client: httpx.Client | None = None) -> dict:
@@ -147,7 +187,7 @@ def fetch_retractions(mailto: str, dest: str | Path, *, client: httpx.Client | N
     finally:
         if owns:
             client.close()
-    dest.write_bytes(data)
+    _write_atomic(dest, data)  # CSV first: its meta must never describe a file not on disk
     line_breaks = data.count(b"\n")
     row_count = max(0, line_breaks - (1 if data.endswith(b"\n") else 0))
     meta = {
@@ -156,5 +196,5 @@ def fetch_retractions(mailto: str, dest: str | Path, *, client: httpx.Client | N
         "sha256": hashlib.sha256(data).hexdigest(),
         "row_count": row_count,
     }
-    dest.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    _write_atomic(dest.with_suffix(".meta.json"), json.dumps(meta, indent=2).encode("utf-8"))
     return meta

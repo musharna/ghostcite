@@ -6,6 +6,30 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A Retraction Watch snapshot hid retractions CrossRef reported.** With a
+  snapshot loaded (including the auto-loaded `~/.cache/ghostcite/retractions.csv`),
+  its verdict replaced CrossRef's live flag, and a DOI missing from the snapshot
+  counted as not retracted. A paper retracted after the snapshot date got no
+  Tier R finding and `--fail-on retraction` passed. The verdict is now the OR of
+  the two sources: the snapshot can add a retraction but not hide one, and a
+  finding only CrossRef supports says `per CrossRef`. `RetractionDB.lookup` now
+  returns `None` for a DOI the snapshot does not list, where it used to return
+  `(False, False)`.
+- The auto-loaded snapshot cache was used at any age without a word. It now
+  warns on stderr once it is more than 30 days old (`DEFAULT_CACHE_MAX_AGE_DAYS`);
+  a `--retraction-db <path>` pin is not age-checked.
+- `fetch-retractions` wrote the CSV in place, so a crash mid-write left a
+  truncated snapshot under the old date. The CSV and then its meta are each
+  written to a temp file and moved into place.
+
+### Changed
+
+- With a snapshot active, the retraction tier is no longer independent of
+  CrossRef's live record; the README's "byte-reproducible" claim for it is
+  removed.
+
 ## [0.6.4] - 2026-09-26
 
 ### Documentation

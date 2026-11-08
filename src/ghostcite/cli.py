@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import warnings
 from contextlib import ExitStack
 
 from ghostcite import __version__
@@ -102,8 +103,8 @@ def _parse_args(argv):
     p.add_argument(
         "--retraction-db",
         default=None,
-        help="path to a Retraction Watch CSV snapshot (authoritative retraction "
-        "source; 'none' forces live CrossRef even if a cache exists)",
+        help="path to a Retraction Watch CSV snapshot (OR-ed with CrossRef's live "
+        "retraction flags; 'none' forces live CrossRef even if a cache exists)",
     )
     p.add_argument(
         "--semantic",
@@ -397,10 +398,14 @@ def main(argv=None) -> int:
         return 0
 
     try:
-        rdb = resolve_db(args.retraction_db)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            rdb = resolve_db(args.retraction_db)
     except RetractionDBError as e:
         print(f"ghostcite: {e}", file=sys.stderr)
         return 2
+    for w in caught:
+        print(f"ghostcite: warning: {w.message}", file=sys.stderr)
     retraction_source = rdb.source_label if rdb else "CrossRef live"
 
     findings: list[Finding] = []
